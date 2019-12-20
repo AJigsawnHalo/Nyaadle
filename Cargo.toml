@@ -7,5 +7,5 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
-
+rss = { version = "1.8.0", features = ["from_url"] }
+reqwest = "0.9.24"
