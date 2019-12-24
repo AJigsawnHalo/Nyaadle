@@ -5,6 +5,7 @@ use std::io::copy;
 use std::fs::File;
 use rss::Channel;
 use config::Config;
+use dirs;
 
 error_chain! {
     foreign_links {
@@ -17,8 +18,14 @@ error_chain! {
 /// Returns either an `Ok` or an `Err`.
 fn download(target: &str) -> Result<()> {
     // Get the download dir from the Settings.toml file
+    let mut set_dir = dirs::config_dir().unwrap();
+    set_dir.push("nyaadle");
+    set_dir.push("Settings");
+    set_dir.set_extension("toml");
+    let set_dir = set_dir.to_str().unwrap();
+
     let mut settings = Config::new();
-    settings.merge(config::File::with_name("Settings")).unwrap();
+    settings.merge(config::File::with_name(set_dir)).unwrap();
     let dl_dir = settings.get_str("dl-dir").unwrap();
 
     let mut response = reqwest::get(target)?;
@@ -50,8 +57,14 @@ pub fn feed_parser() {
     let items = channel.into_items();
 
     // Read the watch-list from the Settings.toml
+    let mut set_dir = dirs::config_dir().unwrap();
+    set_dir.push("nyaadle");
+    set_dir.push("Settings");
+    set_dir.set_extension("toml");
+    let set_dir = set_dir.to_str().unwrap();
+
     let mut settings = Config::new();
-    settings.merge(config::File::with_name("Settings")).unwrap();
+    settings.merge(config::File::with_name(set_dir)).unwrap();
     // Transform the watch-list into an array.
     let watch_list = settings.get_array("watch-list").unwrap();
 
