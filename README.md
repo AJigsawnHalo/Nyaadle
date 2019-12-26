@@ -2,7 +2,7 @@
 A small rss parser and downloader for a certain cat-themed website.
 
 ## How it works
-Nyaadle connects to the cat-themed website and compares it to a watch-list you providw.
+Nyaadle connects to the cat-themed website and compares it to a watch-list you provide.
 If a match is found, it grabs the link and downloads it to a specified folder.
 
 ## Future Plans
