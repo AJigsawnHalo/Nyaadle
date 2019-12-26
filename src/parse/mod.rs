@@ -105,7 +105,7 @@ fn download(target: &str) -> Result<()> {
             .unwrap_or("tmp.bin");
 
         println!("file to download: '{}'", fname);
-        let fname = format!("{}{}", dl_dir, fname);
+        let fname = format!("{}/{}", dl_dir, fname);
         println!("will be located under: '{:?}'", fname);
         File::create(fname)?
     };
@@ -142,18 +142,21 @@ pub fn feed_parser() {
             // Iterate in the array items
             for item in &items {
                 // Compare the 'title' and the 'item' to see if it's in the watch-list
-                if item.title().unwrap() == &title {
-                    // Get the link of the item
-                    let link = item.link();
-                    let target = match link {
-                        Some(link) => link,
-                        _ => continue
-                    };
-                    // Download the given link
-                    let result = download(target);
-                    match result {
-                        Ok(_) => println!("Download Success!"),
-                        Err(_) => println!("An Error Occurred.")
+                let check = item.title().unwrap();
+                if check.contains(&title) {
+                    if check.contains("[1080p]"){
+                        // Get the link of the item
+                        let link = item.link();
+                        let target = match link {
+                            Some(link) => link,
+                            _ => continue
+                        };
+                        // Download the given link
+                        let result = download(target);
+                        match result {
+                            Ok(_) => println!("Download Success!"),
+                            Err(_) => println!("An Error Occurred.")
+                        }
                     }
                 }
             }
