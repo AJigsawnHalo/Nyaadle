@@ -50,9 +50,9 @@ pub fn write_settings() {
     if Path::new(&set_file).exists() {
         return
     } else {
+        println!("Settings.toml not found. Creating it right now.");
         // create directory
         std::fs::create_dir(&directory).expect("Unable to create directory");
-        println!("{}", &set_file);
         // Create Settings.toml and add dl-dir
         let dl = format!("{} = \"{}\"\n", default_set.dl_key, default_set.dl_val);
         write(&set_file, dl).expect("Unable to write file");
@@ -60,6 +60,9 @@ pub fn write_settings() {
         let mut file = OpenOptions::new().append(true).open(&set_file).unwrap();
         let wl = format!("{} = [ \n \"{}\", \n]\n", default_set.wl_key, default_set.wl_val);
         file.write_all(wl.as_bytes()).expect("Unable to append file");
+        
+        println!("Settings.toml created.");
+        println!("You can change settings by editing the config file in {}", &set_file); 
     }
 }
 
