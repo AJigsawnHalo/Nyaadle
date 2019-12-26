@@ -2,10 +2,14 @@
 // which can be found at: https://rust-lang-nursery.github.io/rust-cookbook/
 
 use std::io::copy;
+use std::io::Write;
 use std::fs::File;
+use std::fs::write;
 use rss::Channel;
 use config::Config;
 use dirs;
+use std::path::Path;
+use std::fs::OpenOptions;
 
 error_chain! {
     foreign_links {
@@ -14,18 +18,76 @@ error_chain! {
     }
 }
 
-/// Function that takes in a link and downloads it to the specified path. 
-/// Returns either an `Ok` or an `Err`.
-fn download(target: &str) -> Result<()> {
-    // Get the download dir from the Settings.toml file
+
+
+pub fn write_settings() {
+    // These are default values.
+    let mut dl_dir = dirs::home_dir().unwrap();
+    dl_dir.push("Transmission");
+    dl_dir.push("torrent-ingest");
+    let dl_dir = String::from(dl_dir.to_str().unwrap());
+
+    struct Settings {
+        dl_key: String,
+        dl_val: String,
+        wl_key: String,
+        wl_val: String
+    }
+    let default_set = Settings {
+        dl_key: String::from("dl-dir"),
+        dl_val: dl_dir,
+        wl_key: String::from("watch-list"),
+        wl_val: String::from("")
+    };
+
+    let set_file = settings_dir();
+    let mut directory = dirs::config_dir().unwrap();
+    directory.push("nyaadle");
+    let directory = String::from(directory.to_str().unwrap());
+    // If the settings file doesn't exist, create it.
+    if Path::new(&set_file).exists() {
+        return
+    } else {
+        // create directory
+        std::fs::create_dir(&directory).expect("Unable to create directory");
+        println!("{}", &set_file);
+        // Create Settings.toml
+        let dl = format!("{} = \"{}\"\n", default_set.dl_key, default_set.dl_val);
+        write(&set_file, dl).expect("Unable to write file");
+
+        let mut file = OpenOptions::new().append(true).open(&set_file).unwrap();
+        let wl = format!("{} = [ \n \"{}\", \n]\n", default_set.wl_key, default_set.wl_val);
+        file.write_all(wl.as_bytes()).expect("Unable to append file");
+
+    }
+}
+
+/// Sets the settings directory using User Variables.
+fn settings_dir() -> String {
     let mut set_dir = dirs::config_dir().unwrap();
     set_dir.push("nyaadle");
     set_dir.push("Settings");
     set_dir.set_extension("toml");
-    let set_dir = set_dir.to_str().unwrap();
+    let set_dir = String::from(set_dir.to_str().unwrap());
+    set_dir
+}
+
+/// Function that returns a `Config` struct from the crate Config. 
+/// This allows us to read the settings set by the user.
+pub fn get_settings() -> config::Config {
+    let set_dir = settings_dir();
 
     let mut settings = Config::new();
-    settings.merge(config::File::with_name(set_dir)).unwrap();
+    settings.merge(config::File::with_name(&set_dir)).unwrap();
+    settings
+}
+
+/// Function that takes in a link and downloads it to the specified path. 
+/// Returns either an `Ok` or an `Err`.
+fn download(target: &str) -> Result<()> {
+    // Get the download dir from the Settings.toml file
+    let settings = get_settings();
+
     let dl_dir = settings.get_str("dl-dir").unwrap();
 
     let mut response = reqwest::get(target)?;
@@ -53,18 +115,12 @@ fn download(target: &str) -> Result<()> {
 /// If an item title matches the watch list, it invokes the `download` function.
 pub fn feed_parser() {
     // Create a channel for the rss feed and return a vector of items.
-    let channel = Channel::from_url("https://nyaa.si/?page=rss").unwrap();
+    let channel = Channel::from_url("https://nyaa.si/?page=rss").expect("Unable to connect to website");
     let items = channel.into_items();
 
     // Read the watch-list from the Settings.toml
-    let mut set_dir = dirs::config_dir().unwrap();
-    set_dir.push("nyaadle");
-    set_dir.push("Settings");
-    set_dir.set_extension("toml");
-    let set_dir = set_dir.to_str().unwrap();
-
-    let mut settings = Config::new();
-    settings.merge(config::File::with_name(set_dir)).unwrap();
+    let set_dir = settings_dir();
+    let settings = get_settings();
     // Transform the watch-list into an array.
     let watch_list = settings.get_array("watch-list").unwrap();
 
@@ -76,7 +132,7 @@ pub fn feed_parser() {
         // Transform anime into a string so it would be usable in the comparison.
         let title = anime.into_str().unwrap();
         if &title == "" {
-            println!("Please set a watch-list in the config file.")
+            println!("Please set a watch-list in the config file in: {}", set_dir);
         } else {
             println!("Checking for {}", &title);
             // Iterate in the array items

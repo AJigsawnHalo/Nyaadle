@@ -9,5 +9,6 @@ extern crate reqwest;
 
 /// The main function of the program.
 fn main() {
+    parse::write_settings();
     parse::feed_parser();
 }
