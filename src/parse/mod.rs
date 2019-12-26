@@ -75,24 +75,28 @@ pub fn feed_parser() {
     for anime in watch_list{
         // Transform anime into a string so it would be usable in the comparison.
         let title = anime.into_str().unwrap();
-        println!("Checking for {}", &title);
-        // Iterate in the array items
-        for item in &items {
-            // Compare the 'title' and the 'item' to see if it's in the watch-list
-            if item.title().unwrap() == &title {
-                // Get the link of the item
-                let link = item.link();
-                let target = match link {
-                    Some(link) => link,
-                    _ => continue
-                };
-                // Download the given link
-                let result = download(target);
-                match result {
-                    Ok(_) => println!("Download Success!"),
-                    Err(_) => println!("An Error Occurred.")
+        if &title == "" {
+            println!("Please set a watch-list in the config file.")
+        } else {
+            println!("Checking for {}", &title);
+            // Iterate in the array items
+            for item in &items {
+                // Compare the 'title' and the 'item' to see if it's in the watch-list
+                if item.title().unwrap() == &title {
+                    // Get the link of the item
+                    let link = item.link();
+                    let target = match link {
+                        Some(link) => link,
+                        _ => continue
+                    };
+                    // Download the given link
+                    let result = download(target);
+                    match result {
+                        Ok(_) => println!("Download Success!"),
+                        Err(_) => println!("An Error Occurred.")
+                    }
                 }
-            } 
-        }   
-    }   
+            }
+        }
+    }
 }
