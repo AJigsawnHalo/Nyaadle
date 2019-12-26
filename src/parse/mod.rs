@@ -18,21 +18,22 @@ error_chain! {
     }
 }
 
-
-
+/// Checks if the config directory exists and then creates it if it's not found.
 pub fn write_settings() {
-    // These are default values.
+    // Gets the home directory
     let mut dl_dir = dirs::home_dir().unwrap();
     dl_dir.push("Transmission");
     dl_dir.push("torrent-ingest");
     let dl_dir = String::from(dl_dir.to_str().unwrap());
-
+    
+    // Settings Struct
     struct Settings {
         dl_key: String,
         dl_val: String,
         wl_key: String,
         wl_val: String
     }
+    // Default Settings
     let default_set = Settings {
         dl_key: String::from("dl-dir"),
         dl_val: dl_dir,
@@ -43,6 +44,7 @@ pub fn write_settings() {
     let set_file = settings_dir();
     let mut directory = dirs::config_dir().unwrap();
     directory.push("nyaadle");
+
     let directory = String::from(directory.to_str().unwrap());
     // If the settings file doesn't exist, create it.
     if Path::new(&set_file).exists() {
@@ -51,14 +53,13 @@ pub fn write_settings() {
         // create directory
         std::fs::create_dir(&directory).expect("Unable to create directory");
         println!("{}", &set_file);
-        // Create Settings.toml
+        // Create Settings.toml and add dl-dir
         let dl = format!("{} = \"{}\"\n", default_set.dl_key, default_set.dl_val);
         write(&set_file, dl).expect("Unable to write file");
-
+        // Append watch-list to Settings.toml
         let mut file = OpenOptions::new().append(true).open(&set_file).unwrap();
         let wl = format!("{} = [ \n \"{}\", \n]\n", default_set.wl_key, default_set.wl_val);
         file.write_all(wl.as_bytes()).expect("Unable to append file");
-
     }
 }
 
