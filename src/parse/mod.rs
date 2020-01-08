@@ -31,14 +31,18 @@ pub fn write_settings() {
         dl_key: String,
         dl_val: String,
         wl_key: String,
-        wl_val: String
+        wl_val: String,
+        nf_key: String,
+        nf_val: String
     }
     // Default Settings
     let default_set = Settings {
         dl_key: String::from("dl-dir"),
         dl_val: dl_dir,
         wl_key: String::from("watch-list"),
-        wl_val: String::from("")
+        wl_val: String::from(""),
+        nf_key: String::from("non-fhd"),
+        nf_val: String::from("")
     };
 
     let set_file = settings_dir();
@@ -60,6 +64,8 @@ pub fn write_settings() {
         let mut file = OpenOptions::new().append(true).open(&set_file).unwrap();
         let wl = format!("{} = [ \n \"{}\", \n]\n", default_set.wl_key, default_set.wl_val);
         file.write_all(wl.as_bytes()).expect("Unable to append file");
+        let nf = format!("{} = [ \n \"{}\", \n]\n", default_set.nf_key, default_set.nf_val);
+        file.write_all(nf.as_bytes()).expect("Unable to append file");
         
         println!("Settings.toml created.");
         println!("You can change settings by editing the config file in {}", &set_file); 
@@ -121,22 +127,31 @@ pub fn feed_parser() {
     // Create a channel for the rss feed and return a vector of items.
     let channel = Channel::from_url("https://nyaa.si/?page=rss").expect("Unable to connect to website");
     let items = channel.into_items();
+    let items2 = items.clone();
 
-    // Read the watch-list from the Settings.toml
+    // Read the watc-list from the Settings.toml
     let set_dir = settings_dir();
+    let set_dir2 = set_dir.clone();
     let settings = get_settings();
     // Transform the watch-list into an array.
     let watch_list = settings.get_array("watch-list").unwrap();
-
-    // Main logic for the function
-    // The function iterates on the array 'watch_list' and compares it to the 'items' returned by the website.
-
-    // Iterate in the array 'watch_list'
-    for anime in watch_list{
+    let non_fhd_list = settings.get_array("non-fhd").unwrap();
+    nyaadle_logic_fhd(items, watch_list, set_dir);
+    nyaadle_logic(items2, non_fhd_list, set_dir2);
+}
+/// Main logic for the function. Used on 1080p versions. This is the default option.
+/// The function iterates on the array 'watch_list' and compares it to the 'items' returned by the website.
+/// Iterate in the array 'watch_list'
+pub fn nyaadle_logic_fhd(items: Vec<rss::Item>, watch_list: Vec<config::Value>, set_dir: String) {
+    println!("Checking 1080p versions...");
+    for anime in watch_list {
         // Transform anime into a string so it would be usable in the comparison.
         let title = anime.into_str().unwrap();
         if &title == "" {
             println!("Please set a watch-list in the config file in: {}", set_dir);
+        } else if &title == "Skip" {
+            println!("Skipping 1080p check.");
+            continue
         } else {
             println!("Checking for {}", &title);
             // Iterate in the array items
@@ -158,6 +173,47 @@ pub fn feed_parser() {
                             Err(_) => println!("An Error Occurred.")
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/// Main logic for the function. Used on items that has no choice of resolution. 
+/// The function iterates on the array 'watch_list' and compares it to the 'items' returned by the website.
+/// Iterate in the array 'watch_list'
+// FIXME: Currently downloads all resolutions if there's different versions found
+pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<config::Value>, set_dir: String) {
+    println!("Checking non-1080p versions...");
+    for anime in watch_list {
+        // Transform anime into a string so it would be usable in the comparison.
+        let title = anime.into_str().unwrap();
+        if &title == "" {
+            println!("Please set a watch-list in the config file in: {}", set_dir);
+        } else if &title == "Skip"{
+            println!("Skipping non-1080p check.");
+            continue
+        } else {
+            println!("Checking for {}", &title);
+            // Iterate in the array items
+            for item in &items {
+                // Compare the 'title' and the 'item' to see if it's in the watch-list
+                let check = item.title().unwrap();
+                if check.contains("1080"){
+                    continue   
+                } else if check.contains(&title) {
+                        // Get the link of the item
+                        let link = item.link();
+                        let target = match link {
+                            Some(link) => link,
+                            _ => continue
+                        };
+                        // Download the given link
+                        let result = download(target);
+                        match result {
+                            Ok(_) => println!("Download Success!"),
+                            Err(_) => println!("An Error Occurred.")
+                        }
                 }
             }
         }
