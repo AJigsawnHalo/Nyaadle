@@ -192,7 +192,7 @@ pub fn nyaadle_logic_fhd(items: Vec<rss::Item>, watch_list: Vec<config::Value>, 
         if &title == "" {
             println!("Please set a watch-list in the config file in: {}", set_dir);
         } else if &title == "Skip" {
-            println!("Skipping 1080p check.");
+            println!("Skipping 1080p check.\n");
             continue
         } else {
             println!("Checking for {}", &title);
@@ -211,8 +211,8 @@ pub fn nyaadle_logic_fhd(items: Vec<rss::Item>, watch_list: Vec<config::Value>, 
                         // Download the given link
                         let result = download(target);
                         match result {
-                            Ok(_) => println!("Success."),
-                            Err(_) => println!("An Error Occurred.")
+                            Ok(_) => println!("Success.\n"),
+                            Err(_) => println!("An Error Occurred.\n")
                         }
                     }
                 }
@@ -233,7 +233,7 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<config::Value>, set_
         if &title == "" {
             println!("Please set a watch-list in the config file in: {}", set_dir);
         } else if &title == "Skip"{
-            println!("Skipping non-1080p check.");
+            println!("Skipping non-1080p check.\n");
             continue
         } else {
             println!("Checking for {}", &title);
@@ -253,8 +253,8 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<config::Value>, set_
                         // Download the given link
                         let result = download(target);
                         match result {
-                            Ok(_) => println!("Download Success!"),
-                            Err(_) => println!("An Error Occurred.")
+                            Ok(_) => println!("Success.\n"),
+                            Err(_) => println!("An Error Occurred.\n")
                         }
                 }
             }
