@@ -73,7 +73,7 @@ pub fn write_settings() {
 }
 
 /// Sets the settings directory using User Variables.
-fn settings_dir() -> String {
+pub fn settings_dir() -> String {
     let mut set_dir = dirs::config_dir().unwrap();
     set_dir.push("nyaadle");
     set_dir.push("Settings");
@@ -92,6 +92,25 @@ pub fn get_settings() -> config::Config {
     settings
 }
 
+fn archive_check(target: &str) -> &str {
+    let settings = get_settings();
+    let mut archive_dir = settings.get_str("dl-dir").unwrap();
+    archive_dir.push_str("/archive/");
+    let response = reqwest::get(target).unwrap();
+    let fname = response
+            .url()
+            .path_segments()
+            .and_then(|segments| segments.last())
+            .and_then(|name| if name.is_empty() { None } else { Some(name) })
+            .unwrap_or("tmp.bin");
+    archive_dir.push_str(fname);
+    let path = Path::new(&archive_dir);
+    match path.exists() {
+        true => "Found",
+        false => "Empty"
+    }
+}
+
 /// Function that takes in a link and downloads it to the specified path. 
 /// Returns either an `Ok` or an `Err`.
 fn download(target: &str) -> Result<()> {
@@ -99,24 +118,47 @@ fn download(target: &str) -> Result<()> {
     let settings = get_settings();
 
     let dl_dir = settings.get_str("dl-dir").unwrap();
+    let mut archive_dir = settings.get_str("dl-dir").unwrap();
+    archive_dir.push_str("/archive");
+    let check = archive_check(&target);
+    if check == "Found" {
+        println!("File Found. Skipping Download");
+        return Ok(())
+    } else {
 
-    let mut response = reqwest::get(target)?;
+        // Normal download location
+        let mut response = reqwest::get(target)?;
+        let mut dest = {
+            let fname = response
+                    .url()
+                .path_segments()
+                .and_then(|segments| segments.last())
+                    .and_then(|name| if name.is_empty() { None } else { Some(name) })
+                .unwrap_or("tmp.bin");
 
-    let mut dest = {
-        let fname = response
-            .url()
-            .path_segments()
-            .and_then(|segments| segments.last())
-            .and_then(|name| if name.is_empty() { None } else { Some(name) })
-            .unwrap_or("tmp.bin");
+            println!("file to download: '{}'", fname);
+                let fname = format!("{}/{}", dl_dir, fname);
+            println!("will be located under: '{:?}'", fname);
+            File::create(fname)?
+        };
+        copy(&mut response, &mut dest)?;
 
-        println!("file to download: '{}'", fname);
-        let fname = format!("{}/{}", dl_dir, fname);
-        println!("will be located under: '{:?}'", fname);
-        File::create(fname)?
-    };
-    copy(&mut response, &mut dest)?;
-    Ok(())
+        let mut response = reqwest::get(target)?;
+        let mut archive = {
+            let fname = response
+                .url()
+                .path_segments()
+                .and_then(|segments| segments.last())
+                .and_then(|name| if name.is_empty() { None } else { Some(name) })
+                .unwrap_or("tmp.bin");
+
+            let fname = format!("{}/{}", archive_dir, fname);
+            File::create(fname)?
+        };
+        copy(&mut response, &mut archive)?;
+        
+        Ok(())
+    }
 }
 
 /// Function that parses the nyaa.si website then compares it against a 
@@ -143,7 +185,7 @@ pub fn feed_parser() {
 /// The function iterates on the array 'watch_list' and compares it to the 'items' returned by the website.
 /// Iterate in the array 'watch_list'
 pub fn nyaadle_logic_fhd(items: Vec<rss::Item>, watch_list: Vec<config::Value>, set_dir: String) {
-    println!("Checking 1080p versions...");
+    println!("\nChecking 1080p versions...");
     for anime in watch_list {
         // Transform anime into a string so it would be usable in the comparison.
         let title = anime.into_str().unwrap();
@@ -169,7 +211,7 @@ pub fn nyaadle_logic_fhd(items: Vec<rss::Item>, watch_list: Vec<config::Value>, 
                         // Download the given link
                         let result = download(target);
                         match result {
-                            Ok(_) => println!("Download Success!"),
+                            Ok(_) => println!("Success."),
                             Err(_) => println!("An Error Occurred.")
                         }
                     }
@@ -184,7 +226,7 @@ pub fn nyaadle_logic_fhd(items: Vec<rss::Item>, watch_list: Vec<config::Value>, 
 /// Iterate in the array 'watch_list'
 // FIXME: Currently downloads all resolutions if there's different versions found
 pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<config::Value>, set_dir: String) {
-    println!("Checking non-1080p versions...");
+    println!("\nChecking non-1080p versions...");
     for anime in watch_list {
         // Transform anime into a string so it would be usable in the comparison.
         let title = anime.into_str().unwrap();
