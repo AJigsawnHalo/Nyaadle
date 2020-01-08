@@ -73,7 +73,7 @@ pub fn write_settings() {
 }
 
 /// Sets the settings directory using User Variables.
-fn settings_dir() -> String {
+pub fn settings_dir() -> String {
     let mut set_dir = dirs::config_dir().unwrap();
     set_dir.push("nyaadle");
     set_dir.push("Settings");
