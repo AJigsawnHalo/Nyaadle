@@ -179,9 +179,10 @@ pub fn nyaadle_logic_fhd(items: Vec<rss::Item>, watch_list: Vec<config::Value>, 
     }
 }
 
-/// Main logic for the function. Used on non-1080p versions
+/// Main logic for the function. Used on items that has no choice of resolution. 
 /// The function iterates on the array 'watch_list' and compares it to the 'items' returned by the website.
 /// Iterate in the array 'watch_list'
+// FIXME: Currently downloads all resolutions if there's different versions found
 pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<config::Value>, set_dir: String) {
     println!("Checking non-1080p versions...");
     for anime in watch_list {
