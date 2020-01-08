@@ -92,6 +92,25 @@ pub fn get_settings() -> config::Config {
     settings
 }
 
+fn archive_check(target: &str) -> &str {
+    let settings = get_settings();
+    let mut archive_dir = settings.get_str("dl-dir").unwrap();
+    archive_dir.push_str("/archive/");
+    let response = reqwest::get(target).unwrap();
+    let fname = response
+            .url()
+            .path_segments()
+            .and_then(|segments| segments.last())
+            .and_then(|name| if name.is_empty() { None } else { Some(name) })
+            .unwrap_or("tmp.bin");
+    archive_dir.push_str(fname);
+    let path = Path::new(&archive_dir);
+    match path.exists() {
+        true => "Found",
+        false => "Empty"
+    }
+}
+
 /// Function that takes in a link and downloads it to the specified path. 
 /// Returns either an `Ok` or an `Err`.
 fn download(target: &str) -> Result<()> {
@@ -101,39 +120,45 @@ fn download(target: &str) -> Result<()> {
     let dl_dir = settings.get_str("dl-dir").unwrap();
     let mut archive_dir = settings.get_str("dl-dir").unwrap();
     archive_dir.push_str("/archive");
+    let check = archive_check(&target);
+    if check == "Found" {
+        println!("File Found. Skipping Download");
+        return Ok(())
+    } else {
 
-    // Normal download location
-    let mut response = reqwest::get(target)?;
-    let mut dest = {
-        let fname = response
-            .url()
-            .path_segments()
-            .and_then(|segments| segments.last())
-            .and_then(|name| if name.is_empty() { None } else { Some(name) })
-            .unwrap_or("tmp.bin");
+        // Normal download location
+        let mut response = reqwest::get(target)?;
+        let mut dest = {
+            let fname = response
+                    .url()
+                .path_segments()
+                .and_then(|segments| segments.last())
+                    .and_then(|name| if name.is_empty() { None } else { Some(name) })
+                .unwrap_or("tmp.bin");
 
-        println!("file to download: '{}'", fname);
-        let fname = format!("{}/{}", dl_dir, fname);
-        println!("will be located under: '{:?}'", fname);
-        File::create(fname)?
-    };
-    copy(&mut response, &mut dest)?;
+            println!("file to download: '{}'", fname);
+                let fname = format!("{}/{}", dl_dir, fname);
+            println!("will be located under: '{:?}'", fname);
+            File::create(fname)?
+        };
+        copy(&mut response, &mut dest)?;
 
-    let mut response = reqwest::get(target)?;
-    let mut archive = {
-        let fname = response
-            .url()
-            .path_segments()
-            .and_then(|segments| segments.last())
-            .and_then(|name| if name.is_empty() { None } else { Some(name) })
-            .unwrap_or("tmp.bin");
+        let mut response = reqwest::get(target)?;
+        let mut archive = {
+            let fname = response
+                .url()
+                .path_segments()
+                .and_then(|segments| segments.last())
+                .and_then(|name| if name.is_empty() { None } else { Some(name) })
+                .unwrap_or("tmp.bin");
 
-        let fname = format!("{}/{}", archive_dir, fname);
-        File::create(fname)?
-    };
-    copy(&mut response, &mut archive)?;
-
-    Ok(())
+            let fname = format!("{}/{}", archive_dir, fname);
+            File::create(fname)?
+        };
+        copy(&mut response, &mut archive)?;
+        
+        Ok(())
+    }
 }
 
 /// Function that parses the nyaa.si website then compares it against a 
@@ -186,7 +211,7 @@ pub fn nyaadle_logic_fhd(items: Vec<rss::Item>, watch_list: Vec<config::Value>, 
                         // Download the given link
                         let result = download(target);
                         match result {
-                            Ok(_) => println!("Download Success!"),
+                            Ok(_) => println!("Success."),
                             Err(_) => println!("An Error Occurred.")
                         }
                     }
