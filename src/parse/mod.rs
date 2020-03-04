@@ -26,10 +26,17 @@ pub fn write_settings() {
     dl_dir.push("torrent-ingest");
     let dl_dir = String::from(dl_dir.to_str().unwrap());
     
+    let mut ar_dir = dirs::home_dir().unwrap();
+    ar_dir.push("Transmission");
+    ar_dir.push("torrent-ingest");
+    ar_dir.push("archive");
+    let ar_dir = String::from(ar_dir.to_str().unwrap());
     // Settings Struct
     struct Settings {
         dl_key: String,
         dl_val: String,
+        ar_key: String,
+        ar_val: String,
         wl_key: String,
         wl_val: String,
         nf_key: String,
@@ -39,6 +46,8 @@ pub fn write_settings() {
     let default_set = Settings {
         dl_key: String::from("dl-dir"),
         dl_val: dl_dir,
+        ar_key: String::from("ar-dir"),
+        ar_val: ar_dir,
         wl_key: String::from("watch-list"),
         wl_val: String::from(""),
         nf_key: String::from("non-fhd"),
@@ -62,6 +71,8 @@ pub fn write_settings() {
         write(&set_file, dl).expect("Unable to write file");
         // Append watch-list to Settings.toml
         let mut file = OpenOptions::new().append(true).open(&set_file).unwrap();
+        let ar = format!("{} = \"{}\"\n", default_set.ar_key, default_set.ar_val);
+        file.write_all(ar.as_bytes()).expect("Unable to append file");
         let wl = format!("{} = [ \n \"{}\", \n]\n", default_set.wl_key, default_set.wl_val);
         file.write_all(wl.as_bytes()).expect("Unable to append file");
         let nf = format!("{} = [ \n \"{}\", \n]\n", default_set.nf_key, default_set.nf_val);
