@@ -105,8 +105,7 @@ pub fn get_settings() -> config::Config {
 
 fn archive_check(target: &str) -> &str {
     let settings = get_settings();
-    let mut archive_dir = settings.get_str("dl-dir").unwrap();
-    archive_dir.push_str("/archive/");
+    let mut archive_dir = settings.get_str("ar-dir").unwrap();
     let response = reqwest::get(target).unwrap();
     let fname = response
             .url()
@@ -129,8 +128,7 @@ fn download(target: &str) -> Result<()> {
     let settings = get_settings();
 
     let dl_dir = settings.get_str("dl-dir").unwrap();
-    let mut archive_dir = settings.get_str("dl-dir").unwrap();
-    archive_dir.push_str("/archive");
+    let archive_dir = settings.get_str("ar-dir").unwrap();
     let check = archive_check(&target);
     if check == "Found" {
         println!("File Found. Skipping Download");
