@@ -9,6 +9,6 @@ edition = "2018"
 [dependencies]
 rss = { version = "1.8.0", features = ["from_url"] }
 reqwest = "0.9.24"
-error-chain = "0.12.1"
+error-chain = "0.12.2"
 config = "0.10.1"
 dirs = "2.0.2"
