@@ -10,6 +10,7 @@ use config::Config;
 use dirs;
 use std::path::Path;
 use std::fs::OpenOptions;
+use rusqlite;
 
 error_chain! {
     foreign_links {
