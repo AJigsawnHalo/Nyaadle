@@ -210,7 +210,7 @@ pub fn nyaadle_logic_fhd(items: Vec<rss::Item>, watch_list: Vec<config::Value>, 
                 // Compare the 'title' and the 'item' to see if it's in the watch-list
                 let check = item.title().unwrap();
                 if check.contains(&title) {
-                    if check.contains("[1080p]"){
+                    if check.contains("1080p"){
                         // Get the link of the item
                         let link = item.link();
                         let target = match link {
