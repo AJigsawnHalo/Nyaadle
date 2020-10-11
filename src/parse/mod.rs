@@ -2,15 +2,15 @@
 // which can be found at: https://rust-lang-nursery.github.io/rust-cookbook/
 
 use std::io::copy;
-use std::io::Write;
+//use std::io::Write;
 use std::fs::File;
-use std::fs::write;
+//use std::fs::write;
 use rss::Channel;
 use config::Config;
 use dirs;
 use std::path::Path;
-use std::fs::OpenOptions;
-use rusqlite;
+//use std::fs::OpenOptions;
+use rusqlite::{Connection, NO_PARAMS};
 
 error_chain! {
     foreign_links {
@@ -38,10 +38,10 @@ pub fn write_settings() {
         dl_val: String,
         ar_key: String,
         ar_val: String,
-        wl_key: String,
+/*        wl_key: String,
         wl_val: String,
         nf_key: String,
-        nf_val: String
+        nf_val: String */
     }
     // Default Settings
     let default_set = Settings {
@@ -49,10 +49,10 @@ pub fn write_settings() {
         dl_val: dl_dir,
         ar_key: String::from("ar-dir"),
         ar_val: ar_dir,
-        wl_key: String::from("watch-list"),
+/*        wl_key: String::from("watch-list"),
         wl_val: String::from(""),
         nf_key: String::from("non-fhd"),
-        nf_val: String::from("")
+        nf_val: String::from("") */
     };
 
     let set_file = settings_dir();
@@ -64,32 +64,81 @@ pub fn write_settings() {
     if Path::new(&set_file).exists() {
         return
     } else {
-        println!("Settings.toml not found. Creating it right now.");
+        println!("nyaadle.db not found. Creating it right now.");
         // create directory
         std::fs::create_dir(&directory).expect("Unable to create directory");
+        
         // Create Settings.toml and add dl-dir
+/*
         let dl = format!("{} = \"{}\"\n", default_set.dl_key, default_set.dl_val);
         write(&set_file, dl).expect("Unable to write file");
+*/
+       let db_conn = db_create(&set_file);
+
         // Append watch-list to Settings.toml
-        let mut file = OpenOptions::new().append(true).open(&set_file).unwrap();
+/*        let mut file = OpenOptions::new().append(true).open(&set_file).unwrap();
         let ar = format!("{} = \"{}\"\n", default_set.ar_key, default_set.ar_val);
         file.write_all(ar.as_bytes()).expect("Unable to append file");
         let wl = format!("{} = [ \n \"{}\", \n]\n", default_set.wl_key, default_set.wl_val);
         file.write_all(wl.as_bytes()).expect("Unable to append file");
         let nf = format!("{} = [ \n \"{}\", \n]\n", default_set.nf_key, default_set.nf_val);
         file.write_all(nf.as_bytes()).expect("Unable to append file");
-        
-        println!("Settings.toml created.");
-        println!("You can change settings by editing the config file in {}", &set_file); 
+*/        
+        let db_ar_write = db_write_dir(&set_file, default_set.ar_key, default_set.ar_val);
+        let db_dl_write = db_write_dir(&set_file, default_set.dl_key, default_set.dl_val);
+        if db_conn == Ok(()) && db_ar_write == Ok(()) && db_dl_write == Ok(()){
+            println!("nyaadle.db created.");
+            println!("You can change settings by editing the config file in {}", &set_file); 
+        }
+        else {
+            println!("Failed to create nyaadle.db");
+        }
     }
 }
 
+fn db_create(set_path: &String) -> rusqlite::Result<()> {
+    let conn = Connection::open(&set_path)?;
+
+    conn.execute(
+        "create table if not exists directories (
+            option text primary key,
+            path text not null unique)
+            ",
+            NO_PARAMS,
+    )?;
+    conn.execute(
+        "create table if not exists watchlist (
+            id integer primary key,
+            name text not null unique,
+            option text not null)
+            ",
+            NO_PARAMS,
+    )?;
+
+    Ok(())
+}
+fn db_write_dir(set_path: &String, dir_key: String, dir_val: String) -> rusqlite::Result<()> {
+    let mut dir = std::collections::HashMap::new();
+    dir.insert(dir_key, dir_val);
+    
+    let conn = Connection::open(&set_path)?;
+
+    for (key, val) in &dir {
+        conn.execute(
+            "insert into directories
+            (option, path) values (?1, ?2)",
+            &[&key.to_string(), &val.to_string()]
+        )?;
+    }
+
+    Ok(())
+}
 /// Sets the settings directory using User Variables.
 pub fn settings_dir() -> String {
     let mut set_dir = dirs::config_dir().unwrap();
     set_dir.push("nyaadle");
-    set_dir.push("Settings");
-    set_dir.set_extension("toml");
+    set_dir.push("nyaadle");
+    set_dir.set_extension("db");
     let set_dir = String::from(set_dir.to_str().unwrap());
     set_dir
 }
