@@ -309,15 +309,17 @@ pub fn feed_parser() {
         let option =  &item.option;
         println!("title = {}, option = {}", anime, option);
     }
+    nyaadle_logic(items, watch_list, set_dir);
 }
 /// Main logic for the function. Used on 1080p versions. This is the default option.
 /// The function iterates on the array 'watch_list' and compares it to the 'items' returned by the website.
 /// Iterate in the array 'watch_list'
-pub fn nyaadle_logic_fhd(items: Vec<rss::Item>, watch_list: Vec<config::Value>, set_dir: String) {
-    println!("Checking 1080p versions...");
+pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir: String) {
+    println!("Checking watch-list...");
     for anime in watch_list {
         // Transform anime into a string so it would be usable in the comparison.
-        let title = anime.into_str().unwrap();
+        let title = anime.title;
+        let option = anime.option;
         if &title == "" {
             println!("Please set a watch-list in the config file in: {}", set_dir);
         } else if &title == "Skip" {
@@ -330,7 +332,7 @@ pub fn nyaadle_logic_fhd(items: Vec<rss::Item>, watch_list: Vec<config::Value>, 
                 // Compare the 'title' and the 'item' to see if it's in the watch-list
                 let check = item.title().unwrap();
                 if check.contains(&title) {
-                    if check.contains("1080p"){
+                    if option == String::from("non-vid"){
                         // Get the link of the item
                         let link = item.link();
                         let target = match link {
@@ -343,13 +345,29 @@ pub fn nyaadle_logic_fhd(items: Vec<rss::Item>, watch_list: Vec<config::Value>, 
                             Ok(_) => println!("Success.\n"),
                             Err(_) => println!("An Error Occurred.\n")
                         }
+                    } else if option == String::from(""){
+                        println!("Please set download option in the config file: {}", &set_dir);
+                    } else {
+                        if check.contains(&option) {
+                            let link = item.link();
+                            let target = match link {
+                                Some(link) => link,
+                                _ => continue
+                            };
+                            //Download the given link
+                            let result = download(target);
+                            match result {
+                                Ok(_) => println!("Success.\n"),
+                                Err(_) => println!("An Error Occurred.\n")
+                            }
+                        }
                     }
                 }
             }
         }
     }
 }
-
+/*
 /// Main logic for the function. Used on items that has no choice of resolution. 
 /// The function iterates on the array 'watch_list' and compares it to the 'items' returned by the website.
 /// Iterate in the array 'watch_list'
@@ -390,3 +408,4 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<config::Value>, set_
         }
     }
 }
+*/
