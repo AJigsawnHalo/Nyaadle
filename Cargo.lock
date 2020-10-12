@@ -904,7 +904,7 @@ dependencies = [
 
 [[package]]
 name = "nyaadle"
-version = "2.0.0-dev.0"
+version = "2.0.0-dev.1"
 dependencies = [
  "config",
  "dirs",
