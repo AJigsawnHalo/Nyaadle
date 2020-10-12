@@ -38,12 +38,12 @@ pub struct Watchlist {
 /// Checks if the config directory exists and then creates it if it's not found.
 pub fn write_settings() {
     // Gets the home directory
-    let mut dl_dir = dirs::home_dir().unwrap();
+    let mut dl_dir = dirs::home_dir().expect("Failed to extract home directory");
     dl_dir.push("Transmission");
     dl_dir.push("torrent-ingest");
     let dl_dir = String::from(dl_dir.to_str().unwrap());
     
-    let mut ar_dir = dirs::home_dir().unwrap();
+    let mut ar_dir = dirs::home_dir().expect("Failed to extract home directory");
     ar_dir.push("Transmission");
     ar_dir.push("torrent-ingest");
     ar_dir.push("archive");
@@ -231,7 +231,7 @@ fn archive_check(target: &str) -> &str {
 
 /// Function that takes in a link and downloads it to the specified path. 
 /// Returns either an `Ok` or an `Err`.
-fn download(target: &str) -> Result<()> {
+fn downloader(target: &str) -> Result<()> {
     // Get the download dir from the Settings.toml file
     let dl_dir = get_settings(&String::from("dl-dir")).unwrap();
     let archive_dir = get_settings(&String::from("ar-dir")).unwrap();
@@ -276,6 +276,23 @@ fn download(target: &str) -> Result<()> {
         copy(&mut response, &mut archive)?;
         
         Ok(())
+    }
+}
+
+fn download_logic(item: &rss::Item) {
+    // Get the link of the item
+    let title = item.title().expect("Failed to extract title");
+    println!("Downloading {}", title);
+    let link = item.link();
+    let target = match link {
+        Some(link) => link,
+        _ => return
+    };
+    // Download the given link
+    let result = downloader(target);
+    match result {
+        Ok(_) => println!("Success.\n"),
+        Err(_) => println!("An Error Occurred.\n")
     }
 }
 
@@ -330,36 +347,17 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir:
             // Iterate in the array items
             for item in &items {
                 // Compare the 'title' and the 'item' to see if it's in the watch-list
-                let check = item.title().unwrap();
+                let check = item.title().expect("Failed to extract Post title");
                 if check.contains(&title) {
                     if option == String::from("non-vid"){
-                        // Get the link of the item
-                        let link = item.link();
-                        let target = match link {
-                            Some(link) => link,
-                            _ => continue
-                        };
-                        // Download the given link
-                        let result = download(target);
-                        match result {
-                            Ok(_) => println!("Success.\n"),
-                            Err(_) => println!("An Error Occurred.\n")
-                        }
+                        download_logic(item);
                     } else if option == String::from(""){
                         println!("Please set download option in the config file: {}", &set_dir);
                     } else {
                         if check.contains(&option) {
-                            let link = item.link();
-                            let target = match link {
-                                Some(link) => link,
-                                _ => continue
-                            };
-                            //Download the given link
-                            let result = download(target);
-                            match result {
-                                Ok(_) => println!("Success.\n"),
-                                Err(_) => println!("An Error Occurred.\n")
-                            }
+                            println!("Selecting {}p version", &option);
+                            download_logic(item);
+                            
                         }
                     }
                 }
@@ -367,6 +365,8 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir:
         }
     }
 }
+
+
 /*
 /// Main logic for the function. Used on items that has no choice of resolution. 
 /// The function iterates on the array 'watch_list' and compares it to the 'items' returned by the website.
