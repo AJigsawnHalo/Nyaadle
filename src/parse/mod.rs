@@ -6,11 +6,11 @@ use std::io::copy;
 use std::fs::File;
 //use std::fs::write;
 use rss::Channel;
-use config::Config;
+//use config::Config;
 use dirs;
 use std::path::Path;
 //use std::fs::OpenOptions;
-use rusqlite::{Connection, NO_PARAMS};
+use rusqlite::{Connection, NO_PARAMS, named_params};
 
 error_chain! {
     foreign_links {
@@ -18,7 +18,17 @@ error_chain! {
         HttpRequest(reqwest::Error);
     }
 }
-
+/// Settings Struct
+struct Settings {
+    dl_key: String,
+    dl_val: String,
+    ar_key: String,
+    ar_val: String,
+/*    wl_key: String,
+    wl_val: String,
+    nf_key: String,
+    nf_val: String */
+}
 /// Checks if the config directory exists and then creates it if it's not found.
 pub fn write_settings() {
     // Gets the home directory
@@ -32,17 +42,7 @@ pub fn write_settings() {
     ar_dir.push("torrent-ingest");
     ar_dir.push("archive");
     let ar_dir = String::from(ar_dir.to_str().unwrap());
-    // Settings Struct
-    struct Settings {
-        dl_key: String,
-        dl_val: String,
-        ar_key: String,
-        ar_val: String,
-/*        wl_key: String,
-        wl_val: String,
-        nf_key: String,
-        nf_val: String */
-    }
+  
     // Default Settings
     let default_set = Settings {
         dl_key: String::from("dl-dir"),
@@ -145,17 +145,26 @@ pub fn settings_dir() -> String {
 
 /// Function that returns a `Config` struct from the crate Config. 
 /// This allows us to read the settings set by the user.
-pub fn get_settings() -> config::Config {
+pub fn get_settings(key: &String) -> rusqlite::Result<String> {
     let set_dir = settings_dir();
-
-    let mut settings = Config::new();
+/*    let mut settings = Config::new();
     settings.merge(config::File::with_name(&set_dir)).unwrap();
     settings
+*/
+    let conn = Connection::open(set_dir)?;
+    let mut stmt = conn.prepare("SELECT path FROM directories WHERE option = :name")?;
+    let rows = stmt.query_map_named(named_params!{ ":name": &key }, |row| row.get(0))?;
+
+    let mut names = String::new();
+    for name_result in rows {
+        names = name_result.unwrap();
+    }
+    Ok(names)
 }
 
 fn archive_check(target: &str) -> &str {
-    let settings = get_settings();
-    let archive_dir = settings.get_str("ar-dir").unwrap();
+    let archive_dir = get_settings(&String::from("ar-dir")).unwrap();
+   // let archive_dir = settings.get_str("ar-dir").unwrap();
     let response = reqwest::get(target).unwrap();
     let fname = response
             .url()
@@ -175,10 +184,11 @@ fn archive_check(target: &str) -> &str {
 /// Returns either an `Ok` or an `Err`.
 fn download(target: &str) -> Result<()> {
     // Get the download dir from the Settings.toml file
-    let settings = get_settings();
+    let dl_dir = get_settings(&String::from("dl-dir")).unwrap();
+    let archive_dir = get_settings(&String::from("ar-dir")).unwrap();
 
-    let dl_dir = settings.get_str("dl-dir").unwrap();
-    let archive_dir = settings.get_str("ar-dir").unwrap();
+    //let dl_dir = settings.get_str("dl-dir").unwrap();
+    //let archive_dir = settings.get_str("ar-dir").unwrap();
     let check = archive_check(&target);
     if check == "Found" {
         println!("File Found. Skipping Download");
@@ -233,12 +243,16 @@ pub fn feed_parser() {
     // Read the watc-list from the Settings.toml
     let set_dir = settings_dir();
     let set_dir2 = set_dir.clone();
-    let settings = get_settings();
+   /* let settings = get_settings();
     // Transform the watch-list into an array.
     let watch_list = settings.get_array("watch-list").unwrap();
     let non_fhd_list = settings.get_array("non-fhd").unwrap();
     nyaadle_logic_fhd(items, watch_list, set_dir);
     nyaadle_logic(items2, non_fhd_list, set_dir2);
+    */
+    let dl_dir = get_settings(&String::from("dl-dir")).expect("Failed");
+    let archive_dir = get_settings(&String::from("ar-dir")).expect("Failed");
+    println!("dl-dir = {}, ar-dir = {}", dl_dir, archive_dir);
 }
 /// Main logic for the function. Used on 1080p versions. This is the default option.
 /// The function iterates on the array 'watch_list' and compares it to the 'items' returned by the website.
