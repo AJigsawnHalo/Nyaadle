@@ -29,6 +29,12 @@ struct Settings {
     nf_key: String,
     nf_val: String */
 }
+
+pub struct Watchlist {
+    title: String,
+    option: String
+}
+
 /// Checks if the config directory exists and then creates it if it's not found.
 pub fn write_settings() {
     // Gets the home directory
@@ -53,6 +59,10 @@ pub fn write_settings() {
         wl_val: String::from(""),
         nf_key: String::from("non-fhd"),
         nf_val: String::from("") */
+    };
+    let default_wl = Watchlist {
+        title: String::from(""),
+        option: String::from("non-vid")
     };
 
     let set_file = settings_dir();
@@ -86,7 +96,8 @@ pub fn write_settings() {
 */        
         let db_ar_write = db_write_dir(&set_file, default_set.ar_key, default_set.ar_val);
         let db_dl_write = db_write_dir(&set_file, default_set.dl_key, default_set.dl_val);
-        if db_conn == Ok(()) && db_ar_write == Ok(()) && db_dl_write == Ok(()){
+        let db_wl_write = db_write_wl(&set_file, default_wl.title, default_wl.option);
+        if db_conn == Ok(()) && db_ar_write == Ok(()) && db_dl_write == Ok(()) && db_wl_write == Ok(()){
             println!("nyaadle.db created.");
             println!("You can change settings by editing the config file in {}", &set_file); 
         }
@@ -133,6 +144,24 @@ fn db_write_dir(set_path: &String, dir_key: String, dir_val: String) -> rusqlite
 
     Ok(())
 }
+
+fn db_write_wl(set_path: &String, wl_key: String, wl_val: String) -> rusqlite::Result<()> {
+    let mut wl = std::collections::HashMap::new();
+    wl.insert(wl_key, wl_val);
+    
+    let conn = Connection::open(&set_path)?;
+
+    for (key, val) in &wl {
+        conn.execute(
+            "insert into watchlist
+            (name, option) values (?1, ?2)",
+            &[&key.to_string(), &val.to_string()]
+        )?;
+    }
+
+    Ok(())
+}
+
 /// Sets the settings directory using User Variables.
 pub fn settings_dir() -> String {
     let mut set_dir = dirs::config_dir().unwrap();
@@ -160,6 +189,26 @@ pub fn get_settings(key: &String) -> rusqlite::Result<String> {
         names = name_result.unwrap();
     }
     Ok(names)
+}
+
+fn read_watch_list(set_path: &String) -> rusqlite::Result<Vec<Watchlist>>{
+
+    let conn = Connection::open(set_path)?;
+
+    let mut stmt = conn.prepare("SELECT * FROM watchlist")?;
+    let stored_watch_list = stmt.query_map(
+        NO_PARAMS, |row| {
+            Ok(Watchlist {
+                title: row.get(1)?,
+                option: row.get(2)?,
+            })
+        }
+    )?;
+    let mut watch_list = Vec::new();
+    for item in stored_watch_list {
+        watch_list.push(item?)
+    }
+    Ok(watch_list)
 }
 
 fn archive_check(target: &str) -> &str {
@@ -238,11 +287,11 @@ pub fn feed_parser() {
     // Create a channel for the rss feed and return a vector of items.
     let channel = Channel::from_url("https://nyaa.si/?page=rss").expect("Unable to connect to website");
     let items = channel.into_items();
-    let items2 = items.clone();
+    //let items2 = items.clone();
 
     // Read the watc-list from the Settings.toml
     let set_dir = settings_dir();
-    let set_dir2 = set_dir.clone();
+    //let set_dir2 = set_dir.clone();
    /* let settings = get_settings();
     // Transform the watch-list into an array.
     let watch_list = settings.get_array("watch-list").unwrap();
@@ -252,7 +301,14 @@ pub fn feed_parser() {
     */
     let dl_dir = get_settings(&String::from("dl-dir")).expect("Failed");
     let archive_dir = get_settings(&String::from("ar-dir")).expect("Failed");
+    let watch_list = read_watch_list(&set_dir).expect("Failed to unpack vectors");
+
     println!("dl-dir = {}, ar-dir = {}", dl_dir, archive_dir);
+    for item in &watch_list {
+        let anime = &item.title;
+        let option =  &item.option;
+        println!("title = {}, option = {}", anime, option);
+    }
 }
 /// Main logic for the function. Used on 1080p versions. This is the default option.
 /// The function iterates on the array 'watch_list' and compares it to the 'items' returned by the website.
