@@ -67,8 +67,9 @@ pub fn write_settings() {
     } else {
         println!("nyaadle.db not found. Creating it right now.");
         // create directory
-        std::fs::create_dir(&directory).expect("Unable to create directory");
-        std::fs::create_dir_all(Path::new(&default_set.ar_val)).expect("Unable to create directory");
+        if Path::new(&directory).exists() == false {
+            std::fs::create_dir(&directory).expect("Unable to create directory");
+        }
         // Create nyaadle.db and add dl-dir
         let db_conn = db_create(&set_file);
         let db_ar_write = db_write_dir(&set_file, default_set.ar_key, default_set.ar_val);
@@ -248,6 +249,9 @@ fn downloader(target: &str) -> Result<()> {
     let archive_dir = get_settings(&String::from("ar-dir")).unwrap();
 
     // Check if the download/archive location exists
+    if Path::new(&dl_dir).exists() == false {
+       std::fs::create_dir_all(Path::new(&dl_dir)).expect("Failed to create directory"); 
+    }
     if Path::new(&archive_dir).exists() == false {
        std::fs::create_dir_all(Path::new(&archive_dir)).expect("Failed to create directory"); 
     }
@@ -328,6 +332,7 @@ pub fn feed_parser() {
 
     // Execute the main logic
     nyaadle_logic(items, watch_list, set_dir);
+    
 }
 
 /// Main logic for the function. 
