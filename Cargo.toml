@@ -1,6 +1,6 @@
 [package]
 name = "nyaadle"
-version = "2.0.0-alpha.4"
+version = "2.0.0-alpha.5"
 authors = ["Joash Christian Liwanag <nightlock0326@gmail.com>"]
 edition = "2018"
 
@@ -10,6 +10,5 @@ edition = "2018"
 rss = { version = "1.8.0", features = ["from_url"] }
 reqwest = "0.9.24"
 error-chain = "0.12.2"
-config = "0.10.1"
 dirs = "2.0.2"
 rusqlite = { version = "0.24.1", features = ["bundled"] }

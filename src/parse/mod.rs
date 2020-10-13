@@ -2,14 +2,10 @@
 // which can be found at: https://rust-lang-nursery.github.io/rust-cookbook/
 
 use std::io::copy;
-//use std::io::Write;
 use std::fs::File;
-//use std::fs::write;
 use rss::Channel;
-//use config::Config;
 use dirs;
 use std::path::Path;
-//use std::fs::OpenOptions;
 use rusqlite::{Connection, NO_PARAMS, named_params};
 
 error_chain! {
@@ -24,12 +20,8 @@ struct Settings {
     dl_val: String,
     ar_key: String,
     ar_val: String,
-/*    wl_key: String,
-    wl_val: String,
-    nf_key: String,
-    nf_val: String */
 }
-
+/// Public Watchlist Struct
 pub struct Watchlist {
     title: String,
     option: String
@@ -55,11 +47,9 @@ pub fn write_settings() {
         dl_val: dl_dir,
         ar_key: String::from("ar-dir"),
         ar_val: ar_dir,
-/*        wl_key: String::from("watch-list"),
-        wl_val: String::from(""),
-        nf_key: String::from("non-fhd"),
-        nf_val: String::from("") */
     };
+
+    // Default Watchlist
     let default_wl = Watchlist {
         title: String::from(""),
         option: String::from("non-vid")
@@ -70,6 +60,7 @@ pub fn write_settings() {
     directory.push("nyaadle");
 
     let directory = String::from(directory.to_str().unwrap());
+
     // If the settings file doesn't exist, create it.
     if Path::new(&set_file).exists() {
         return
@@ -78,24 +69,12 @@ pub fn write_settings() {
         // create directory
         std::fs::create_dir(&directory).expect("Unable to create directory");
         std::fs::create_dir_all(Path::new(&default_set.ar_val)).expect("Unable to create directory");
-        // Create Settings.toml and add dl-dir
-/*
-        let dl = format!("{} = \"{}\"\n", default_set.dl_key, default_set.dl_val);
-        write(&set_file, dl).expect("Unable to write file");
-*/
-       let db_conn = db_create(&set_file);
-
-        // Append watch-list to Settings.toml
-/*        let mut file = OpenOptions::new().append(true).open(&set_file).unwrap();
-        let ar = format!("{} = \"{}\"\n", default_set.ar_key, default_set.ar_val);
-        file.write_all(ar.as_bytes()).expect("Unable to append file");
-        let wl = format!("{} = [ \n \"{}\", \n]\n", default_set.wl_key, default_set.wl_val);
-        file.write_all(wl.as_bytes()).expect("Unable to append file");
-        let nf = format!("{} = [ \n \"{}\", \n]\n", default_set.nf_key, default_set.nf_val);
-        file.write_all(nf.as_bytes()).expect("Unable to append file");
-*/        
+        // Create nyaadle.db and add dl-dir
+        let db_conn = db_create(&set_file);
         let db_ar_write = db_write_dir(&set_file, default_set.ar_key, default_set.ar_val);
         let db_dl_write = db_write_dir(&set_file, default_set.dl_key, default_set.dl_val);
+
+        // Append watch-list to nyaadle.db
         let db_wl_write = db_write_wl(&set_file, default_wl.title, default_wl.option);
         if db_conn == Ok(()) && db_ar_write == Ok(()) && db_dl_write == Ok(()) && db_wl_write == Ok(()){
             println!("nyaadle.db created.");
@@ -107,9 +86,11 @@ pub fn write_settings() {
     }
 }
 
+/// Function to create a database with the default tables
 fn db_create(set_path: &String) -> rusqlite::Result<()> {
     let conn = Connection::open(&set_path)?;
 
+    // Create the directories table
     conn.execute(
         "create table if not exists directories (
             option text primary key,
@@ -117,6 +98,8 @@ fn db_create(set_path: &String) -> rusqlite::Result<()> {
             ",
             NO_PARAMS,
     )?;
+
+    // Create the watchlist table
     conn.execute(
         "create table if not exists watchlist (
             id integer primary key,
@@ -128,12 +111,17 @@ fn db_create(set_path: &String) -> rusqlite::Result<()> {
 
     Ok(())
 }
+
+/// Funtion to write the directory values to the directories table
 fn db_write_dir(set_path: &String, dir_key: String, dir_val: String) -> rusqlite::Result<()> {
+    // Collect the directory values
     let mut dir = std::collections::HashMap::new();
     dir.insert(dir_key, dir_val);
     
+    // Establish a connection to the database
     let conn = Connection::open(&set_path)?;
 
+    // Insert the values into the table
     for (key, val) in &dir {
         conn.execute(
             "insert into directories
@@ -142,15 +130,20 @@ fn db_write_dir(set_path: &String, dir_key: String, dir_val: String) -> rusqlite
         )?;
     }
 
+    // return an Ok value
     Ok(())
 }
 
+/// Function to write the watchlist values to the watchlist table
 fn db_write_wl(set_path: &String, wl_key: String, wl_val: String) -> rusqlite::Result<()> {
+    // Collect the watchlist values
     let mut wl = std::collections::HashMap::new();
     wl.insert(wl_key, wl_val);
     
+    // Establish a connection to the database
     let conn = Connection::open(&set_path)?;
 
+    // Insert the values into the table
     for (key, val) in &wl {
         conn.execute(
             "insert into watchlist
@@ -159,43 +152,57 @@ fn db_write_wl(set_path: &String, wl_key: String, wl_val: String) -> rusqlite::R
         )?;
     }
 
+    // return an Ok value
     Ok(())
 }
 
 /// Sets the settings directory using User Variables.
 pub fn settings_dir() -> String {
+    // Get the config dir for the system
     let mut set_dir = dirs::config_dir().unwrap();
+
+    // Push the needed values for nyaadle
     set_dir.push("nyaadle");
     set_dir.push("nyaadle");
     set_dir.set_extension("db");
+
+    // Create the path string
     let set_dir = String::from(set_dir.to_str().unwrap());
+
+    // Return the path
     set_dir
 }
 
-/// Function that returns a `Config` struct from the crate Config. 
+/// Function that returns the values for the directories. 
 /// This allows us to read the settings set by the user.
 pub fn get_settings(key: &String) -> rusqlite::Result<String> {
+    // Get the settings path
     let set_dir = settings_dir();
-/*    let mut settings = Config::new();
-    settings.merge(config::File::with_name(&set_dir)).unwrap();
-    settings
-*/
+
+    // Establish a connection to the database
     let conn = Connection::open(set_dir)?;
+    // Prepare the query
     let mut stmt = conn.prepare("SELECT path FROM directories WHERE option = :name")?;
+    // execute the query
     let rows = stmt.query_map_named(named_params!{ ":name": &key }, |row| row.get(0))?;
 
-    let mut names = String::new();
-    for name_result in rows {
-        names = name_result.unwrap();
+    // push the returned value into a String
+    let mut dir = String::new();
+    for dir_result in rows {
+        dir = dir_result.unwrap();
     }
-    Ok(names)
+    // Return the directory path
+    Ok(dir)
 }
 
+/// Function that returns the values inside the watchlist table
 fn read_watch_list(set_path: &String) -> rusqlite::Result<Vec<Watchlist>>{
-
+    // Open the database
     let conn = Connection::open(set_path)?;
 
+    // Prepare the query for the watchlist
     let mut stmt = conn.prepare("SELECT * FROM watchlist")?;
+    // Execute the query. Returns the values into a Watchlist Struct
     let stored_watch_list = stmt.query_map(
         NO_PARAMS, |row| {
             Ok(Watchlist {
@@ -204,13 +211,17 @@ fn read_watch_list(set_path: &String) -> rusqlite::Result<Vec<Watchlist>>{
             })
         }
     )?;
+    // Push the returned values into a Vector
     let mut watch_list = Vec::new();
     for item in stored_watch_list {
         watch_list.push(item?)
     }
+    // Return the watchlist
     Ok(watch_list)
 }
 
+/// Checks if the `target` has been already downloaded and archived
+/// Returns either `Found` or `Empty`
 fn archive_check(target: &str) -> &str {
     let archive_dir = get_settings(&String::from("ar-dir")).unwrap();
    // let archive_dir = settings.get_str("ar-dir").unwrap();
@@ -236,9 +247,7 @@ fn downloader(target: &str) -> Result<()> {
     let dl_dir = get_settings(&String::from("dl-dir")).unwrap();
     let archive_dir = get_settings(&String::from("ar-dir")).unwrap();
 
-    //let dl_dir = settings.get_str("dl-dir").unwrap();
-    //let archive_dir = settings.get_str("ar-dir").unwrap();
-
+    // Check if the download/archive location exists
     if Path::new(&archive_dir).exists() == false {
        std::fs::create_dir_all(Path::new(&archive_dir)).expect("Failed to create directory"); 
     }
@@ -266,6 +275,7 @@ fn downloader(target: &str) -> Result<()> {
         };
         copy(&mut response, &mut dest)?;
 
+        // The archive function
         let mut response = reqwest::get(target)?;
         let mut archive = {
             let fname = response
@@ -284,6 +294,8 @@ fn downloader(target: &str) -> Result<()> {
     }
 }
 
+/// Initializes the download function then passes on the target link
+/// to the downloader function
 fn download_logic(item: &rss::Item) {
     // Get the link of the item
     let title = item.title().expect("Failed to extract title");
@@ -309,33 +321,22 @@ pub fn feed_parser() {
     // Create a channel for the rss feed and return a vector of items.
     let channel = Channel::from_url("https://nyaa.si/?page=rss").expect("Unable to connect to website");
     let items = channel.into_items();
-    //let items2 = items.clone();
 
-    // Read the watc-list from the Settings.toml
+    // Read the watchlist from the database
     let set_dir = settings_dir();
-    //let set_dir2 = set_dir.clone();
-   /* let settings = get_settings();
-    // Transform the watch-list into an array.
-    let watch_list = settings.get_array("watch-list").unwrap();
-    let non_fhd_list = settings.get_array("non-fhd").unwrap();
-    nyaadle_logic_fhd(items, watch_list, set_dir);
-    nyaadle_logic(items2, non_fhd_list, set_dir2);
-    */
-    let dl_dir = get_settings(&String::from("dl-dir")).expect("Failed");
-    let archive_dir = get_settings(&String::from("ar-dir")).expect("Failed");
     let watch_list = read_watch_list(&set_dir).expect("Failed to unpack vectors");
 
-    println!("dl-dir = {}, ar-dir = {}", dl_dir, archive_dir);
-    for item in &watch_list {
-        let anime = &item.title;
-        let option =  &item.option;
-        println!("title = {}, option = {}", anime, option);
-    }
+    // Execute the main logic
     nyaadle_logic(items, watch_list, set_dir);
 }
-/// Main logic for the function. Used on 1080p versions. This is the default option.
-/// The function iterates on the array 'watch_list' and compares it to the 'items' returned by the website.
-/// Iterate in the array 'watch_list'
+
+/// Main logic for the function. 
+/// The function iterates on the Vector `watch_list` and compares it to the `items` returned by the website.
+/// This function also checks for the download option that is set by the user.
+/// There can be two download options:
+/// - A resolution number. This is used for video items. 
+///     Example: `1080p`, `720p`, `480p`
+/// - `non-vid`. This is used for other items such as Books, Software, or Audio.
 pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir: String) {
     println!("Checking watch-list...");
     for anime in watch_list {
@@ -370,47 +371,3 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir:
         }
     }
 }
-
-
-/*
-/// Main logic for the function. Used on items that has no choice of resolution. 
-/// The function iterates on the array 'watch_list' and compares it to the 'items' returned by the website.
-/// Iterate in the array 'watch_list'
-// FIXME: Currently downloads all resolutions if there's different versions found
-pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<config::Value>, set_dir: String) {
-    println!("\nChecking non-1080p versions...");
-    for anime in watch_list {
-        // Transform anime into a string so it would be usable in the comparison.
-        let title = anime.into_str().unwrap();
-        if &title == "" {
-            println!("Please set a watch-list in the config file in: {}", set_dir);
-        } else if &title == "Skip"{
-            println!("Skipping non-1080p check.\n");
-            continue
-        } else {
-            println!("Checking for {}", &title);
-            // Iterate in the array items
-            for item in &items {
-                // Compare the 'title' and the 'item' to see if it's in the watch-list
-                let check = item.title().unwrap();
-                if check.contains("1080"){
-                    continue   
-                } else if check.contains(&title) {
-                        // Get the link of the item
-                        let link = item.link();
-                        let target = match link {
-                            Some(link) => link,
-                            _ => continue
-                        };
-                        // Download the given link
-                        let result = download(target);
-                        match result {
-                            Ok(_) => println!("Success.\n"),
-                            Err(_) => println!("An Error Occurred.\n")
-                        }
-                }
-            }
-        }
-    }
-}
-*/
