@@ -66,6 +66,7 @@ pub fn write_settings() {
         println!("Settings.toml not found. Creating it right now.");
         // create directory
         std::fs::create_dir(&directory).expect("Unable to create directory");
+        std::fs::create_dir_all(Path::new(&default_set.ar_val)).expect("Unable to create directory");
         // Create Settings.toml and add dl-dir
         let dl = format!("{} = \"{}\"\n", default_set.dl_key, default_set.dl_val);
         write(&set_file, dl).expect("Unable to write file");
@@ -129,6 +130,11 @@ fn download(target: &str) -> Result<()> {
 
     let dl_dir = settings.get_str("dl-dir").unwrap();
     let archive_dir = settings.get_str("ar-dir").unwrap();
+
+    if Path::new(&archive_dir).exists() == false {
+       std::fs::create_dir_all(Path::new(&archive_dir)).expect("Failed to create directory"); 
+    }
+
     let check = archive_check(&target);
     if check == "Found" {
         println!("File Found. Skipping Download");
