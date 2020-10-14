@@ -223,9 +223,8 @@ fn read_watch_list(set_path: &String) -> rusqlite::Result<Vec<Watchlist>>{
 
 /// Checks if the `target` has been already downloaded and archived
 /// Returns either `Found` or `Empty`
-fn archive_check(target: &str) -> &str {
-    let archive_dir = get_settings(&String::from("ar-dir")).unwrap();
-   // let archive_dir = settings.get_str("ar-dir").unwrap();
+fn archive_check(target: &str, archive_dir: &String) -> String {
+    let dir = archive_dir;
     let response = reqwest::get(target).unwrap();
     let fname = response
             .url()
@@ -233,11 +232,11 @@ fn archive_check(target: &str) -> &str {
             .and_then(|segments| segments.last())
             .and_then(|name| if name.is_empty() { None } else { Some(name) })
             .unwrap_or("tmp.bin");
-    let fname = format!("{}/{}", archive_dir, fname);
+    let fname = format!("{}/{}", dir, fname);
     let path = Path::new(&fname);
     match path.exists() {
-        true => "Found",
-        false => "Empty"
+        true => String::from("Found"),
+        false => String::from("Empty")
     }
 }
 
@@ -256,7 +255,7 @@ fn downloader(target: &str) -> Result<()> {
        std::fs::create_dir_all(Path::new(&archive_dir)).expect("Failed to create directory"); 
     }
 
-    let check = archive_check(&target);
+    let check = archive_check(&target, &archive_dir);
     if check == "Found" {
         println!("File Found. Skipping Download");
         return Ok(())
