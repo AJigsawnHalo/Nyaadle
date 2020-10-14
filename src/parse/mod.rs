@@ -363,6 +363,7 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir:
                 // Compare the 'title' and the 'item' to see if it's in the watch-list
                 let check = item.title().expect("Failed to extract Post title");
                 if check.contains(&title) {
+                    let opt2 = &option;
                     if option == non_opt {
                         download_logic(item);
                     } else if option == String::from("") {
@@ -370,13 +371,10 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir:
                             "Please set download option in the config file: {}",
                             &set_dir
                         );
-                    } else {
-                        if check.contains(&option) {
-                            println!("Selecting {}p version", &option);
+                    } else if check.contains(&option) {
+                            println!("Selecting {}p version", &opt2);
                             download_logic(item);
-                        } else {
-                            println!("Invalid download option. Please set a valid option in the config file: {}", &set_dir);
-                        }
+                            items.iter();
                     }
                 }
             }
