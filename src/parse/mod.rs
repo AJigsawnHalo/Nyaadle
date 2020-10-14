@@ -342,6 +342,7 @@ pub fn feed_parser() {
 ///     Example: `1080p`, `720p`, `480p`
 /// - `non-vid`. This is used for other items such as Books, Software, or Audio.
 pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir: String) {
+    let non_opt = String::from("non-vid");
     println!("Checking watch-list...");
     for anime in watch_list {
         // Transform anime into a string so it would be usable in the comparison.
@@ -359,7 +360,7 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir:
                 // Compare the 'title' and the 'item' to see if it's in the watch-list
                 let check = item.title().expect("Failed to extract Post title");
                 if check.contains(&title) {
-                    if option == String::from("non-vid"){
+                    if option == non_opt {
                         download_logic(item);
                     } else if option == String::from(""){
                         println!("Please set download option in the config file: {}", &set_dir);
@@ -368,6 +369,9 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir:
                             println!("Selecting {}p version", &option);
                             download_logic(item);
                             
+                        }
+                        else {
+                            println!("Invalid download option. Please set a valid option in the config file: {}", &set_dir);
                         }
                     }
                 }
