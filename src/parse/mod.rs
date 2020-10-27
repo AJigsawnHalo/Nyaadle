@@ -372,9 +372,9 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir:
                             &set_dir
                         );
                     } else if check.contains(&option) {
-                            println!("Selecting {}p version", &opt2);
-                            download_logic(item);
-                            items.iter();
+                        println!("Selecting {}p version", &opt2);
+                        download_logic(item);
+                        items.iter();
                     }
                 }
             }
