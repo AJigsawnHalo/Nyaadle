@@ -118,7 +118,11 @@ fn download_logic(item: &rss::Item) {
 pub fn feed_parser() {
     // Create a channel for the rss feed and return a vector of items.
     let channel =
-        Channel::from_url("https://nyaa.si/?page=rss").expect("Unable to connect to website");
+        Channel::from_url("https://nyaa.si/?page=rss")
+            .unwrap_or_else( |_e| {
+                println!("Unable to connect to website. Exiting...");
+                std::process::exit(0)
+            });
     let items = channel.into_items();
 
     // Read the watchlist from the database
