@@ -15,8 +15,6 @@ error_chain! {
     }
 }
 
-
-
 /// Checks if the `target` has been already downloaded and archived
 /// Returns either `Found` or `Empty`
 fn archive_check(target: &str, archive_dir: &String) -> String {
@@ -117,12 +115,10 @@ fn download_logic(item: &rss::Item) {
 /// If an item title matches the watch list, it invokes the `download` function.
 pub fn feed_parser() {
     // Create a channel for the rss feed and return a vector of items.
-    let channel =
-        Channel::from_url("https://nyaa.si/?page=rss")
-            .unwrap_or_else( |_e| {
-                println!("Unable to connect to website. Exiting...");
-                std::process::exit(0)
-            });
+    let channel = Channel::from_url("https://nyaa.si/?page=rss").unwrap_or_else(|_e| {
+        println!("Unable to connect to website. Exiting...");
+        std::process::exit(0)
+    });
     let items = channel.into_items();
 
     // Read the watchlist from the database
