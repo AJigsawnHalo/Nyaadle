@@ -1,7 +1,6 @@
 use dirs;
-use rusqlite::{named_params, Connection, NO_PARAMS};
+use rusqlite::{named_params, params, Connection, NO_PARAMS};
 use std::path::Path;
-
 
 /// Settings Struct
 struct Settings {
@@ -11,6 +10,7 @@ struct Settings {
     ar_val: String,
 }
 /// Public Watchlist Struct
+#[derive(Clone, Debug)]
 pub struct Watchlist {
     pub title: String,
     pub option: String,
@@ -84,11 +84,11 @@ pub fn write_settings() {
         }
         // Create nyaadle.db and add dl-dir
         let db_conn = db_create(&set_file);
-        let db_ar_write = db_write_dir(&set_file, default_set.ar_key, default_set.ar_val);
-        let db_dl_write = db_write_dir(&set_file, default_set.dl_key, default_set.dl_val);
+        let db_ar_write = db_write_dir(&set_file, &default_set.ar_key, &default_set.ar_val);
+        let db_dl_write = db_write_dir(&set_file, &default_set.dl_key, &default_set.dl_val);
 
         // Append watch-list to nyaadle.db
-        let db_wl_write = db_write_wl(&set_file, default_wl.title, default_wl.option);
+        let db_wl_write = db_write_wl(&set_file, &default_wl.title, &default_wl.option);
         if db_conn == Ok(())
             && db_ar_write == Ok(())
             && db_dl_write == Ok(())
@@ -132,7 +132,7 @@ fn db_create(set_path: &String) -> rusqlite::Result<()> {
 }
 
 /// Funtion to write the directory values to the directories table
-fn db_write_dir(set_path: &String, dir_key: String, dir_val: String) -> rusqlite::Result<()> {
+fn db_write_dir(set_path: &String, dir_key: &String, dir_val: &String) -> rusqlite::Result<()> {
     // Collect the directory values
     let mut dir = std::collections::HashMap::new();
     dir.insert(dir_key, dir_val);
@@ -153,8 +153,33 @@ fn db_write_dir(set_path: &String, dir_key: String, dir_val: String) -> rusqlite
     Ok(())
 }
 
+/// Function that updates the directory in the database
+pub fn update_write_dir(
+    set_path: &String,
+    dir_key: &String,
+    dir_val: &String,
+) -> rusqlite::Result<()> {
+    // Collect the directory values
+    let mut dir = std::collections::HashMap::new();
+    dir.insert(dir_key, dir_val);
+
+    // Establish a connection to the database
+    let conn = Connection::open(&set_path)?;
+
+    // Insert the values into the table
+    for (key, val) in &dir {
+        conn.execute(
+            "update directories set path = (?2)
+            where option = (?1)",
+            &[&key.to_string(), &val.to_string()],
+        )?;
+    }
+
+    // return an Ok value
+    Ok(())
+}
 /// Function to write the watchlist values to the watchlist table
-fn db_write_wl(set_path: &String, wl_key: String, wl_val: String) -> rusqlite::Result<()> {
+pub fn db_write_wl(set_path: &String, wl_key: &String, wl_val: &String) -> rusqlite::Result<()> {
     // Collect the watchlist values
     let mut wl = std::collections::HashMap::new();
     wl.insert(wl_key, wl_val);
@@ -172,6 +197,14 @@ fn db_write_wl(set_path: &String, wl_key: String, wl_val: String) -> rusqlite::R
     }
 
     // return an Ok value
+    Ok(())
+}
+
+/// Deletes the item in the database
+pub fn db_delete_wl(set_path: &String, wl_key: &String) -> rusqlite::Result<()> {
+    let conn = Connection::open(&set_path)?;
+
+    conn.execute("delete from watchlist where name = (?1)", params![wl_key])?;
     Ok(())
 }
 
@@ -213,4 +246,3 @@ pub fn get_settings(key: &String) -> rusqlite::Result<String> {
     // Return the directory path
     Ok(dir)
 }
-

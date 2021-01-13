@@ -1,0 +1,17 @@
+name: Nyaadle
+version: "2.1.0-dev.2"
+author: Joash Christian L. <nightlock0326@gmail.com>
+about: A small rss parser and downloader for a certain cat-themed website
+subcommands:
+  - tui:
+      alias: t
+      about: Opens an terminal interface to adjust watch-lists and settings
+      args:
+        - settings:
+            short: s
+            long: settings
+            about: Opens the settings TUI
+        - watch-list:
+            short: w
+            long: watch-list
+            about: Opens the watch-list editor
