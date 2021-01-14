@@ -246,3 +246,13 @@ pub fn get_settings(key: &String) -> rusqlite::Result<String> {
     // Return the directory path
     Ok(dir)
 }
+
+pub fn set_check()  {
+    let set_path = settings_dir();
+    if Path::new(&set_path).exists(){
+        return
+    } else {
+        write_settings();
+        return
+    }
+}

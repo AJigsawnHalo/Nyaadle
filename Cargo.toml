@@ -1,6 +1,6 @@
 [package]
 name = "nyaadle"
-version = "2.1.0"
+version = "2.1.1"
 authors = ["Joash Christian Liwanag <nightlock0326@gmail.com>"]
 edition = "2018"
 description = "A small rss parser and downloader for a certain cat-themed website"
@@ -20,3 +20,8 @@ cursive_table_view = { git = "https://github.com/BonsaiDen/cursive_table_view.gi
 version = "0.15"
 default-features = false
 features = [ "crossterm-backend" ]
+
+[patch.crates-io.enumset_derive]
+git = "https://github.com/ocboogie/enumset"
+branch = "span-fix" 
+

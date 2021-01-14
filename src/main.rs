@@ -4,7 +4,6 @@ mod parse;
 pub mod settings;
 pub mod tui;
 use clap::{load_yaml, App};
-use std::path::Path;
 
 #[macro_use]
 extern crate error_chain;
@@ -16,15 +15,13 @@ fn main() {
     let args = App::from(yaml).get_matches();
 
     if let Some(ref args) = args.subcommand_matches("tui") {
+        settings::set_check();
         if args.is_present("settings") {
             tui::arg_tui("set");
-            return;
         } else if args.is_present("watch-list") {
             tui::arg_tui("wle");
-            return;
         } else {
             tui::main_tui();
-            return;
         }
     } else {
         default_logic();
@@ -32,11 +29,6 @@ fn main() {
 }
 
 fn default_logic() {
-    let set = settings::settings_dir();
-    if Path::new(&set).exists() {
-        parse::feed_parser();
-    } else {
-        settings::write_settings();
-        parse::feed_parser();
-    }
+    settings::set_check();
+    parse::feed_parser();
 }
