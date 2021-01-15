@@ -38,26 +38,7 @@ impl TableViewItem<WatchColumn> for Watchlist {
 pub fn main_tui() {
     let mut siv = cursive::default();
 
-    // Set up the Main TUI
-    let select = SelectView::<String>::new()
-        .item("Watch-list Editor", String::from("wle"))
-        .item("Settings", String::from("set"))
-        .on_submit(on_submit_main)
-        .with_name("select")
-        .fixed_size((80, 10));
-
-    // Adds the Main TUI to the Cursive Root
-    siv.add_layer(
-        Dialog::around(
-            LinearLayout::vertical()
-                .child(TextView::new("Select an option:"))
-                .child(DummyView)
-                .child(select)
-                .child(DummyView)
-                .child(Button::new("Quit", Cursive::quit)),
-        )
-        .title("Nyaadle"),
-    );
+    main_tui_layer(&mut siv);
     // Runs the Cursive Root
     siv.run();
 }
@@ -65,7 +46,6 @@ pub fn main_tui() {
 /// Matches the &str passed and points to the correct tui
 fn on_submit_main(s: &mut Cursive, item: &str) {
     // removes the previous layer
-    s.pop_layer();
     // Matches the item passed by the main_tui
     match item {
         "wle" => wle_tui(s),
@@ -74,9 +54,8 @@ fn on_submit_main(s: &mut Cursive, item: &str) {
     };
 }
 
-/// Function for returning to the main tui
-// FIXME: Find a way to not repeat the code of main_tui()
-fn back_main(s: &mut Cursive) {
+/// Function for setting up the main tui
+fn main_tui_layer(s: &mut Cursive) {
     // Setup the Main TUI
     let select = SelectView::<String>::new()
         .item("Watch-list Editor", String::from("wle"))
@@ -146,7 +125,7 @@ fn wle_tui(s: &mut Cursive) {
     // Buttons at the right side of the TUI
     // Comprised of Navigation Buttons (Back and Quit)
     let buttons_right = LinearLayout::horizontal()
-        .child(Button::new("Back", |s| back_main(s)))
+        .child(Button::new("Back", |s| main_tui_layer(s)))
         .child(Button::new("Quit", Cursive::quit));
 
     // Sets up the buttons into a horizontal layer
@@ -256,7 +235,7 @@ fn set_tui(s: &mut Cursive) {
 
     // Set-up the navigation buttons
     let buttons = LinearLayout::horizontal()
-        .child(Button::new("Back", |s| back_main(s)))
+        .child(Button::new("Back", |s| main_tui_layer(s)))
         .child(Button::new("Quit", Cursive::quit));
 
     // Create the Settings Editor Dialog
