@@ -62,7 +62,7 @@ fn main_tui_layer(s: &mut Cursive) {
         .item("Settings", String::from("set"))
         .on_submit(on_submit_main)
         .with_name("select")
-        .fixed_size((80, 10));
+        .fixed_size((75, 10));
 
     // Removes the previous layer
     s.pop_layer();
@@ -110,7 +110,7 @@ fn wle_tui(s: &mut Cursive) {
 
     // Set-up the Watch-list Editor TableView
     let mut table = TableView::<Watchlist, WatchColumn>::new()
-        .column(WatchColumn::Title, "Item Name", |c| c.width(70))
+        .column(WatchColumn::Title, "Item Name", |c| c.width(60))
         .column(WatchColumn::Option, "Option", |c| c.width(10))
         .default_column(WatchColumn::Title);
 
@@ -121,25 +121,27 @@ fn wle_tui(s: &mut Cursive) {
     // Comprised of the Add and Delete Buttons
     let buttons_left = LinearLayout::horizontal()
         .child(Button::new("Add", add_item))
+        .child(DummyView)
         .child(Button::new("Delete", delete_item));
     // Buttons at the right side of the TUI
     // Comprised of Navigation Buttons (Back and Quit)
     let buttons_right = LinearLayout::horizontal()
         .child(Button::new("Back", |s| main_tui_layer(s)))
+        .child(DummyView)
         .child(Button::new("Quit", Cursive::quit));
 
     // Sets up the buttons into a horizontal layer
     let button_layer = LinearLayout::horizontal()
-        .child(PaddedView::lrtb(0, 60, 0, 0, buttons_left))
+        .child(PaddedView::lrtb(0, 47, 0, 0, buttons_left))
         .child(buttons_right);
     // Adds the views to create the WLE
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
-                .child(table.with_name("watch-list").min_size((80, 20)))
+                .child(table.with_name("watch-list").min_size((80, 18)))
                 .child(button_layer),
         )
-        .title("Watch-list Editor"),
+        .title("Watch-list Editor")
     );
 }
 
@@ -272,7 +274,7 @@ fn ar_edit(s: &mut Cursive, item: &str) {
     let edit = EditView::new()
         .content(ar_dir)
         .with_name("ar_edit")
-        .fixed_width(80);
+        .fixed_width(70);
 
     // Create the Archive Dir Dialog 
     s.add_layer(
@@ -290,7 +292,7 @@ fn ar_edit(s: &mut Cursive, item: &str) {
             ok(s, &set_path, &key, value);
         })
         .title("Edit Archive Directory")
-        .fixed_size((80, 10)),
+        .fixed_size((70, 10)),
     );
 
     // Function that runs when <Ok> is pressed
@@ -313,7 +315,7 @@ fn dl_edit(s: &mut Cursive, item: &str) {
     let edit = EditView::new()
         .content(dl_dir)
         .with_name("dl_edit")
-        .fixed_width(80);
+        .fixed_width(70);
 
     // Create the Download Dir Dialog
     s.add_layer(
@@ -331,13 +333,14 @@ fn dl_edit(s: &mut Cursive, item: &str) {
             ok(s, &set_path, &key, value);
         })
         .title("Edit Download Directory")
-        .fixed_size((80, 10)),
+        .fixed_size((70, 10)),
     );
 
     // Function that runs when the <Ok> button is pressed
     fn ok(s: &mut Cursive, set_path: &String, dir_key: &String, value: String) {
         settings::update_write_dir(&set_path, &dir_key, &value)
-            .expect("Failed to write to database");
+
+          .expect("Failed to write to database");
         s.pop_layer();
     }
 }

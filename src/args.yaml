@@ -1,5 +1,5 @@
 name: Nyaadle
-version: "2.1.1"
+version: "2.2.0-dev.2"
 author: Joash Christian L. <nightlock0326@gmail.com>
 about: A small rss parser and downloader for a certain cat-themed website
 subcommands:
