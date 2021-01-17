@@ -24,3 +24,6 @@ If a match is found, it grabs the link and downloads it to a specified folder.
 
 ## Usage
 Run nyaadle using `nyaadle`. To edit settings and watch-lists use `nyaadle tui`. For more information, run `nyaadle --help` or `nyaadle tui --help`.
+
+## License
+This software is licensed under a [BSD 2-clause license](https://github.com/AJigsawnHalo/Nyaadle/blob/master/LICENSE).
