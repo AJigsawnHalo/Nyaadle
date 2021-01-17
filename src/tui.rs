@@ -138,7 +138,7 @@ fn wle_tui(s: &mut Cursive) {
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
-                .child(table.with_name("watch-list").min_size((80, 18)))
+                .child(table.with_name("watch-list").min_size((70, 18)))
                 .child(button_layer),
         )
         .title("Watch-list Editor")
