@@ -386,7 +386,7 @@ fn url_edit(s: &mut Cursive, item: &str) {
     fn ok(s: &mut Cursive, set_path: &String, dir_key: &String, value: String) {
         let mut val = value;
         if val == "" {
-            val = String::from("https//nyaa.si/?page=rss");
+            val = String::from("https://nyaa.si/?page=rss");
         }
         settings::update_write_dir(&set_path, &dir_key, &val).expect("Failed to write to database");
         s.pop_layer();
