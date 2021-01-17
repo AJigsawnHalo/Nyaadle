@@ -81,7 +81,7 @@ fn main_tui_layer(s: &mut Cursive) {
     );
 }
 
-/// Function that sets up a Cursive TUI when started from 
+/// Function that sets up a Cursive TUI when started from
 /// a command-line argument
 pub fn arg_tui(item: &str) {
     // Create a blank CUrsive Root
@@ -141,7 +141,7 @@ fn wle_tui(s: &mut Cursive) {
                 .child(table.with_name("watch-list").min_size((70, 18)))
                 .child(button_layer),
         )
-        .title("Watch-list Editor")
+        .title("Watch-list Editor"),
     );
 }
 
@@ -278,7 +278,7 @@ fn ar_edit(s: &mut Cursive, item: &str) {
         .with_name("ar_edit")
         .fixed_width(70);
 
-    // Create the Archive Dir Dialog 
+    // Create the Archive Dir Dialog
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
@@ -343,8 +343,7 @@ fn dl_edit(s: &mut Cursive, item: &str) {
     // Function that runs when the <Ok> button is pressed
     fn ok(s: &mut Cursive, set_path: &String, dir_key: &String, value: String) {
         settings::update_write_dir(&set_path, &dir_key, &value)
-
-          .expect("Failed to write to database");
+            .expect("Failed to write to database");
         s.pop_layer();
     }
 }
@@ -353,7 +352,7 @@ fn dl_edit(s: &mut Cursive, item: &str) {
 fn url_edit(s: &mut Cursive, item: &str) {
     // get the settings dir
     let set_path = settings::settings_dir().to_string();
-    // get the current url 
+    // get the current url
     let url = settings::get_settings(&String::from(item)).unwrap();
     // transform the &str item to String
     let key = String::from(item);
@@ -389,9 +388,7 @@ fn url_edit(s: &mut Cursive, item: &str) {
         if val == "" {
             val = String::from("https//nyaa.si/?page=rss");
         }
-        settings::update_write_dir(&set_path, &dir_key, &val)
-          .expect("Failed to write to database");
+        settings::update_write_dir(&set_path, &dir_key, &val).expect("Failed to write to database");
         s.pop_layer();
     }
 }
-

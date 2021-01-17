@@ -125,9 +125,9 @@ pub fn feed_parser() {
     };
 
     let channel = Channel::from_url(&url).unwrap_or_else(|_e| {
-            println!("Unable to connect to website. Exiting...");
-            std::process::exit(0)
-        });
+        println!("Unable to connect to website. Exiting...");
+        std::process::exit(0)
+    });
     let items = channel.into_items();
 
     // Read the watchlist from the database

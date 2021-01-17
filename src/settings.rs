@@ -1,5 +1,5 @@
 use dirs;
-use rusqlite::{named_params, params, Connection, NO_PARAMS, };
+use rusqlite::{named_params, params, Connection, NO_PARAMS};
 use std::path::Path;
 
 /// Settings Struct
@@ -62,7 +62,7 @@ pub fn write_settings() {
         ar_key: String::from("ar-dir"),
         ar_val: ar_dir,
         url_key: String::from("url"),
-        url_val: String::from("https://nyaa.si/?page=rss",) 
+        url_val: String::from("https://nyaa.si/?page=rss"),
     };
 
     // Default Watchlist
@@ -176,23 +176,25 @@ pub fn update_write_dir(
     let mut rows = stmt.query(params![&dir_key])?;
 
     let mut num_match = 0;
-    
+
     while let Some(_rows) = rows.next()? {
         num_match += 1;
         println!("num_match = '{}'", &num_match);
     }
     if num_match != 0 {
-    // Insert the values into the table
+        // Insert the values into the table
         for (key, val) in &dir {
             conn.execute(
                 "update directories set path = (?2)
                 where option = (?1)",
                 &[&key.to_string(), &val.to_string()],
             )?;
-        } 
-    } else if num_match == 0 { 
-        conn.execute("insert into directories (option, path) values (?1, ?2)", &[&dir_key.to_string(), &dir_val.to_string()])?; 
-    
+        }
+    } else if num_match == 0 {
+        conn.execute(
+            "insert into directories (option, path) values (?1, ?2)",
+            &[&dir_key.to_string(), &dir_val.to_string()],
+        )?;
     }
     // return an Ok value
     Ok(())
@@ -266,12 +268,12 @@ pub fn get_settings(key: &String) -> rusqlite::Result<String> {
     Ok(dir)
 }
 
-pub fn set_check()  {
+pub fn set_check() {
     let set_path = settings_dir();
-    if Path::new(&set_path).exists(){
-        return
+    if Path::new(&set_path).exists() {
+        return;
     } else {
         write_settings();
-        return
+        return;
     }
 }
