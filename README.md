@@ -13,7 +13,8 @@ If a match is found, it grabs the link and downloads it to a specified folder.
 ### Build Instructions
  1. Clone the repository or download a zip copy [here](https://github.com/AJigsawnHalo/Nyaadle/releases).
  ```
- git clone https://github.com/AJigsawnHalo/nyaadle.git
+ git clone https://github.com/AJigsawnHalo/Nyaadle.git
+ cd Nyaadle
  ```
 
 
