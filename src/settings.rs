@@ -1,5 +1,5 @@
 use dirs;
-use rusqlite::{named_params, params, Connection, NO_PARAMS};
+use rusqlite::{named_params, params, Connection, NO_PARAMS, };
 use std::path::Path;
 
 /// Settings Struct
@@ -8,6 +8,8 @@ struct Settings {
     dl_val: String,
     ar_key: String,
     ar_val: String,
+    url_key: String,
+    url_val: String,
 }
 /// Public Watchlist Struct
 #[derive(Clone, Debug)]
@@ -59,6 +61,8 @@ pub fn write_settings() {
         dl_val: dl_dir,
         ar_key: String::from("ar-dir"),
         ar_val: ar_dir,
+        url_key: String::from("url"),
+        url_val: String::from("https://nyaa.si/?page=rss",) 
     };
 
     // Default Watchlist
@@ -86,6 +90,7 @@ pub fn write_settings() {
         let db_conn = db_create(&set_file);
         let db_ar_write = db_write_dir(&set_file, &default_set.ar_key, &default_set.ar_val);
         let db_dl_write = db_write_dir(&set_file, &default_set.dl_key, &default_set.dl_val);
+        let db_url_write = db_write_dir(&set_file, &default_set.url_key, &default_set.url_val);
 
         // Append watch-list to nyaadle.db
         let db_wl_write = db_write_wl(&set_file, &default_wl.title, &default_wl.option);
@@ -93,6 +98,7 @@ pub fn write_settings() {
             && db_ar_write == Ok(())
             && db_dl_write == Ok(())
             && db_wl_write == Ok(())
+            && db_url_write == Ok(())
         {
             println!("nyaadle.db created.");
             println!(
@@ -132,7 +138,7 @@ fn db_create(set_path: &String) -> rusqlite::Result<()> {
 }
 
 /// Funtion to write the directory values to the directories table
-fn db_write_dir(set_path: &String, dir_key: &String, dir_val: &String) -> rusqlite::Result<()> {
+pub fn db_write_dir(set_path: &String, dir_key: &String, dir_val: &String) -> rusqlite::Result<()> {
     // Collect the directory values
     let mut dir = std::collections::HashMap::new();
     dir.insert(dir_key, dir_val);
@@ -166,15 +172,28 @@ pub fn update_write_dir(
     // Establish a connection to the database
     let conn = Connection::open(&set_path)?;
 
-    // Insert the values into the table
-    for (key, val) in &dir {
-        conn.execute(
-            "update directories set path = (?2)
-            where option = (?1)",
-            &[&key.to_string(), &val.to_string()],
-        )?;
-    }
+    let mut stmt = conn.prepare("select path from directories where option = (?1)")?;
+    let mut rows = stmt.query(params![&dir_key])?;
 
+    let mut num_match = 0;
+    
+    while let Some(_rows) = rows.next()? {
+        num_match += 1;
+        println!("num_match = '{}'", &num_match);
+    }
+    if num_match != 0 {
+    // Insert the values into the table
+        for (key, val) in &dir {
+            conn.execute(
+                "update directories set path = (?2)
+                where option = (?1)",
+                &[&key.to_string(), &val.to_string()],
+            )?;
+        } 
+    } else if num_match == 0 { 
+        conn.execute("insert into directories (option, path) values (?1, ?2)", &[&dir_key.to_string(), &dir_val.to_string()])?; 
+    
+    }
     // return an Ok value
     Ok(())
 }

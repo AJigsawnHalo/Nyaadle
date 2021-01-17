@@ -231,6 +231,7 @@ fn set_tui(s: &mut Cursive) {
     let select = SelectView::<String>::new()
         .item("Download directory", String::from("dl-dir"))
         .item("Archive directory", String::from("ar-dir"))
+        .item("RSS Feed URL", String::from("url"))
         .on_submit(on_submit_set)
         .with_name("set_select")
         .fixed_size((50, 10));
@@ -258,6 +259,7 @@ fn on_submit_set(s: &mut Cursive, item: &str) {
     match item {
         "ar-dir" => ar_edit(s, item),
         "dl-dir" => dl_edit(s, item),
+        "url" => url_edit(s, item),
         _ => unreachable!("Item not found in list"),
     };
 }
@@ -291,6 +293,7 @@ fn ar_edit(s: &mut Cursive, item: &str) {
                 .expect("Failed to get value");
             ok(s, &set_path, &key, value);
         })
+        .button("Cancel", |s| set_tui(s))
         .title("Edit Archive Directory")
         .fixed_size((70, 10)),
     );
@@ -332,6 +335,7 @@ fn dl_edit(s: &mut Cursive, item: &str) {
                 .expect("Failed to get value");
             ok(s, &set_path, &key, value);
         })
+        .button("Cancel", |s| set_tui(s))
         .title("Edit Download Directory")
         .fixed_size((70, 10)),
     );
@@ -344,3 +348,50 @@ fn dl_edit(s: &mut Cursive, item: &str) {
         s.pop_layer();
     }
 }
+
+/// Dialog box to edit the Downloads Directory
+fn url_edit(s: &mut Cursive, item: &str) {
+    // get the settings dir
+    let set_path = settings::settings_dir().to_string();
+    // get the current url 
+    let url = settings::get_settings(&String::from(item)).unwrap();
+    // transform the &str item to String
+    let key = String::from(item);
+    // Set-up the URL EditView
+    let edit = EditView::new()
+        .content(url)
+        .with_name("url_edit")
+        .fixed_width(70);
+
+    // Create the URL Dialog
+    s.add_layer(
+        Dialog::around(
+            LinearLayout::vertical()
+                .child(TextView::new("Set the rss feed to parse"))
+                .child(edit),
+        )
+        .button("Ok", move |s| {
+            let value = s
+                .call_on_name("url_edit", |view: &mut EditView| {
+                    view.get_content().to_string()
+                })
+                .expect("Failed to get value");
+            ok(s, &set_path, &key, value);
+        })
+        .button("Cancel", |s| set_tui(s))
+        .title("Edit RSS Feed URL")
+        .fixed_size((70, 10)),
+    );
+
+    // Function that runs when the <Ok> button is pressed
+    fn ok(s: &mut Cursive, set_path: &String, dir_key: &String, value: String) {
+        let mut val = value;
+        if val == "" {
+            val = String::from("https//nyaa.si/?page=rss");
+        }
+        settings::update_write_dir(&set_path, &dir_key, &val)
+          .expect("Failed to write to database");
+        s.pop_layer();
+    }
+}
+

@@ -115,10 +115,19 @@ fn download_logic(item: &rss::Item) {
 /// If an item title matches the watch list, it invokes the `download` function.
 pub fn feed_parser() {
     // Create a channel for the rss feed and return a vector of items.
-    let channel = Channel::from_url("https://nyaa.si/?page=rss").unwrap_or_else(|_e| {
-        println!("Unable to connect to website. Exiting...");
-        std::process::exit(0)
-    });
+    let _empty_url = String::from("");
+    let url = {
+        if &settings::get_settings(&String::from("url")).unwrap() == "" {
+            String::from("https://nyaa.si/?page=rss")
+        } else {
+            settings::get_settings(&String::from("url")).unwrap()
+        }
+    };
+
+    let channel = Channel::from_url(&url).unwrap_or_else(|_e| {
+            println!("Unable to connect to website. Exiting...");
+            std::process::exit(0)
+        });
     let items = channel.into_items();
 
     // Read the watchlist from the database
