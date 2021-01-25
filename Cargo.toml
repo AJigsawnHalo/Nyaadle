@@ -1,6 +1,6 @@
 [package]
 name = "nyaadle"
-version = "2.2.0-beta.1.1"
+version = "2.2.0"
 authors = ["Joash Christian Liwanag <nightlock0326@gmail.com>"]
 edition = "2018"
 description = "A small rss parser and downloader for a certain cat-themed website"
