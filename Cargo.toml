@@ -1,6 +1,6 @@
 [package]
 name = "nyaadle"
-version = "2.2.0"
+version = "2.2.1"
 authors = ["Joash Christian Liwanag <nightlock0326@gmail.com>"]
 edition = "2018"
 description = "A small rss parser and downloader for a certain cat-themed website"
@@ -14,14 +14,10 @@ error-chain = "0.12.2"
 dirs = "2.0.2"
 rusqlite = { version = "0.24.1", features = ["bundled"] }
 clap = { git = "https://github.com/clap-rs/clap/", features = [ "yaml" ] }
-cursive_table_view = { git = "https://github.com/BonsaiDen/cursive_table_view.git"}
+cursive_table_view = "0.13"
 
 [dependencies.cursive]
-version = "0.15"
+version = "0.16"
 default-features = false
 features = [ "crossterm-backend" ]
-
-[patch.crates-io.enumset_derive]
-git = "https://github.com/ocboogie/enumset"
-branch = "span-fix" 
 
