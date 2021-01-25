@@ -38,26 +38,7 @@ impl TableViewItem<WatchColumn> for Watchlist {
 pub fn main_tui() {
     let mut siv = cursive::default();
 
-    // Set up the Main TUI
-    let select = SelectView::<String>::new()
-        .item("Watch-list Editor", String::from("wle"))
-        .item("Settings", String::from("set"))
-        .on_submit(on_submit_main)
-        .with_name("select")
-        .fixed_size((80, 10));
-
-    // Adds the Main TUI to the Cursive Root
-    siv.add_layer(
-        Dialog::around(
-            LinearLayout::vertical()
-                .child(TextView::new("Select an option:"))
-                .child(DummyView)
-                .child(select)
-                .child(DummyView)
-                .child(Button::new("Quit", Cursive::quit)),
-        )
-        .title("Nyaadle"),
-    );
+    main_tui_layer(&mut siv);
     // Runs the Cursive Root
     siv.run();
 }
@@ -65,7 +46,6 @@ pub fn main_tui() {
 /// Matches the &str passed and points to the correct tui
 fn on_submit_main(s: &mut Cursive, item: &str) {
     // removes the previous layer
-    s.pop_layer();
     // Matches the item passed by the main_tui
     match item {
         "wle" => wle_tui(s),
@@ -74,16 +54,15 @@ fn on_submit_main(s: &mut Cursive, item: &str) {
     };
 }
 
-/// Function for returning to the main tui
-// FIXME: Find a way to not repeat the code of main_tui()
-fn back_main(s: &mut Cursive) {
+/// Function for setting up the main tui
+fn main_tui_layer(s: &mut Cursive) {
     // Setup the Main TUI
     let select = SelectView::<String>::new()
         .item("Watch-list Editor", String::from("wle"))
         .item("Settings", String::from("set"))
         .on_submit(on_submit_main)
         .with_name("select")
-        .fixed_size((80, 10));
+        .fixed_size((75, 10));
 
     // Removes the previous layer
     s.pop_layer();
@@ -102,7 +81,7 @@ fn back_main(s: &mut Cursive) {
     );
 }
 
-/// Function that sets up a Cursive TUI when started from 
+/// Function that sets up a Cursive TUI when started from
 /// a command-line argument
 pub fn arg_tui(item: &str) {
     // Create a blank CUrsive Root
@@ -131,7 +110,7 @@ fn wle_tui(s: &mut Cursive) {
 
     // Set-up the Watch-list Editor TableView
     let mut table = TableView::<Watchlist, WatchColumn>::new()
-        .column(WatchColumn::Title, "Item Name", |c| c.width(70))
+        .column(WatchColumn::Title, "Item Name", |c| c.width(60))
         .column(WatchColumn::Option, "Option", |c| c.width(10))
         .default_column(WatchColumn::Title);
 
@@ -142,22 +121,24 @@ fn wle_tui(s: &mut Cursive) {
     // Comprised of the Add and Delete Buttons
     let buttons_left = LinearLayout::horizontal()
         .child(Button::new("Add", add_item))
+        .child(DummyView)
         .child(Button::new("Delete", delete_item));
     // Buttons at the right side of the TUI
     // Comprised of Navigation Buttons (Back and Quit)
     let buttons_right = LinearLayout::horizontal()
-        .child(Button::new("Back", |s| back_main(s)))
+        .child(Button::new("Back", |s| main_tui_layer(s)))
+        .child(DummyView)
         .child(Button::new("Quit", Cursive::quit));
 
     // Sets up the buttons into a horizontal layer
     let button_layer = LinearLayout::horizontal()
-        .child(PaddedView::lrtb(0, 60, 0, 0, buttons_left))
+        .child(PaddedView::lrtb(0, 47, 0, 0, buttons_left))
         .child(buttons_right);
     // Adds the views to create the WLE
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
-                .child(table.with_name("watch-list").min_size((80, 20)))
+                .child(table.with_name("watch-list").min_size((70, 18)))
                 .child(button_layer),
         )
         .title("Watch-list Editor"),
@@ -250,13 +231,14 @@ fn set_tui(s: &mut Cursive) {
     let select = SelectView::<String>::new()
         .item("Download directory", String::from("dl-dir"))
         .item("Archive directory", String::from("ar-dir"))
+        .item("RSS Feed URL", String::from("url"))
         .on_submit(on_submit_set)
         .with_name("set_select")
         .fixed_size((50, 10));
 
     // Set-up the navigation buttons
     let buttons = LinearLayout::horizontal()
-        .child(Button::new("Back", |s| back_main(s)))
+        .child(Button::new("Back", |s| main_tui_layer(s)))
         .child(Button::new("Quit", Cursive::quit));
 
     // Create the Settings Editor Dialog
@@ -277,6 +259,7 @@ fn on_submit_set(s: &mut Cursive, item: &str) {
     match item {
         "ar-dir" => ar_edit(s, item),
         "dl-dir" => dl_edit(s, item),
+        "url" => url_edit(s, item),
         _ => unreachable!("Item not found in list"),
     };
 }
@@ -293,9 +276,9 @@ fn ar_edit(s: &mut Cursive, item: &str) {
     let edit = EditView::new()
         .content(ar_dir)
         .with_name("ar_edit")
-        .fixed_width(80);
+        .fixed_width(70);
 
-    // Create the Archive Dir Dialog 
+    // Create the Archive Dir Dialog
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
@@ -310,8 +293,9 @@ fn ar_edit(s: &mut Cursive, item: &str) {
                 .expect("Failed to get value");
             ok(s, &set_path, &key, value);
         })
+        .button("Cancel", |s| set_tui(s))
         .title("Edit Archive Directory")
-        .fixed_size((80, 10)),
+        .fixed_size((70, 10)),
     );
 
     // Function that runs when <Ok> is pressed
@@ -334,7 +318,7 @@ fn dl_edit(s: &mut Cursive, item: &str) {
     let edit = EditView::new()
         .content(dl_dir)
         .with_name("dl_edit")
-        .fixed_width(80);
+        .fixed_width(70);
 
     // Create the Download Dir Dialog
     s.add_layer(
@@ -351,14 +335,60 @@ fn dl_edit(s: &mut Cursive, item: &str) {
                 .expect("Failed to get value");
             ok(s, &set_path, &key, value);
         })
+        .button("Cancel", |s| set_tui(s))
         .title("Edit Download Directory")
-        .fixed_size((80, 10)),
+        .fixed_size((70, 10)),
     );
 
     // Function that runs when the <Ok> button is pressed
     fn ok(s: &mut Cursive, set_path: &String, dir_key: &String, value: String) {
         settings::update_write_dir(&set_path, &dir_key, &value)
             .expect("Failed to write to database");
+        s.pop_layer();
+    }
+}
+
+/// Dialog box to edit the Downloads Directory
+fn url_edit(s: &mut Cursive, item: &str) {
+    // get the settings dir
+    let set_path = settings::settings_dir().to_string();
+    // get the current url
+    let url = settings::get_settings(&String::from(item)).unwrap();
+    // transform the &str item to String
+    let key = String::from(item);
+    // Set-up the URL EditView
+    let edit = EditView::new()
+        .content(url)
+        .with_name("url_edit")
+        .fixed_width(70);
+
+    // Create the URL Dialog
+    s.add_layer(
+        Dialog::around(
+            LinearLayout::vertical()
+                .child(TextView::new("Set the rss feed to parse"))
+                .child(edit),
+        )
+        .button("Ok", move |s| {
+            let value = s
+                .call_on_name("url_edit", |view: &mut EditView| {
+                    view.get_content().to_string()
+                })
+                .expect("Failed to get value");
+            ok(s, &set_path, &key, value);
+        })
+        .button("Cancel", |s| set_tui(s))
+        .title("Edit RSS Feed URL")
+        .fixed_size((70, 10)),
+    );
+
+    // Function that runs when the <Ok> button is pressed
+    fn ok(s: &mut Cursive, set_path: &String, dir_key: &String, value: String) {
+        let mut val = value;
+        if val == "" {
+            val = String::from("https://nyaa.si/?page=rss");
+        }
+        settings::update_write_dir(&set_path, &dir_key, &val).expect("Failed to write to database");
         s.pop_layer();
     }
 }

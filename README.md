@@ -5,6 +5,26 @@ A small rss parser and downloader for a certain cat-themed website.
 Nyaadle connects to the cat-themed website and compares it to a watch-list you provide.
 If a match is found, it grabs the link and downloads it to a specified folder.
 
-## Future Plans
-This program is currently setup for a single website. But future releases might support 
-whatever website that have an rss feed you wish to download from.
+## Installation
+
+### Build Dependencies
+ - [Rust compiler and cargo](https://rustup.rs/)
+
+### Build Instructions
+ 1. Clone the repository or download a zip copy [here](https://github.com/AJigsawnHalo/Nyaadle/releases).
+ ```
+ git clone https://github.com/AJigsawnHalo/Nyaadle.git
+ cd Nyaadle
+ ```
+
+
+ 2. Install using
+  ```
+  cargo install --path .
+  ```
+
+## Usage
+Run nyaadle using `nyaadle`. To edit settings and watch-lists use `nyaadle tui`. For more information, run `nyaadle --help` or `nyaadle tui --help`.
+
+## License
+This software is licensed under a [BSD 2-clause license](https://github.com/AJigsawnHalo/Nyaadle/blob/master/LICENSE).
