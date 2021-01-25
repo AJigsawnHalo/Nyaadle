@@ -4,7 +4,10 @@ mod parse;
 pub mod settings;
 pub mod tui;
 use clap::{load_yaml, App};
-
+use std::{  
+    io::{prelude::*, BufReader},
+    fs::File
+};
 #[macro_use]
 extern crate error_chain;
 extern crate reqwest;
@@ -22,6 +25,25 @@ fn main() {
             tui::arg_tui("wle");
         } else {
             tui::main_tui();
+        }
+    } else if let Some(ref args) = args.subcommand_matches("download"){
+        if args.is_present("links"){
+            let input: Vec<_> = args.values_of("links").unwrap().collect();
+            let mut links: Vec<String> = Vec::new();
+            for tgt in input {
+                let link = tgt.to_string();
+                links.push(link);
+            }
+            parse::arg_dl(links);
+        } else if args.is_present("file"){
+            let input = args.value_of("file").unwrap();
+            let file = File::open(input).expect("Failed to open file");
+            let buf = BufReader::new(file);
+            let links: Vec<String> = buf.lines()
+                .map(|l| l.expect("Failed to read line"))
+                .collect();
+
+           parse::arg_dl(links); 
         }
     } else {
         default_logic();

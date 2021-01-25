@@ -1,11 +1,13 @@
 name: Nyaadle
-version: "2.2.0"
+version: "2.2.0-dev.3"
 author: Joash Christian L. <nightlock0326@gmail.com>
 about: A small rss parser and downloader for a certain cat-themed website
+after_help: "EXAMPLE:\n    nyaadle\n    nyaadle tui\n    nyaadle dl -l <URL>"
 subcommands:
   - tui:
-      alias: t
+      visible_alias: t
       about: Opens an terminal interface to adjust watch-lists and settings
+      after_help: "ALIAS:\n     t\n\nEXAMPLE:\n     nyaadle tui\n     nyaadle t --settings\n     nyaadle t -w"
       args:
         - settings:
             short: s
@@ -15,3 +17,23 @@ subcommands:
             short: w
             long: watch-list
             about: Opens the watch-list editor
+  - download:
+      visible_alias: dl
+      about: Downloads the given URL to the set downloads directory
+      after_help: "ALIAS:\n     dl\n\nEXAMPLE:\n    nyaadle download -l https://foo.com/bar.torrent\n    nyaadle dl -f input.file\n    nyaadle dl -l https://foo.com/bar1.file https://foo.com/bar2.file"
+      settings:
+        - ArgRequiredElseHelp
+      args:
+        - links:
+            short: l
+            long: links
+            about: Used for parsing URLs to download from the command-line
+            takes_value: true
+            multiple: true
+            value_name: URL
+        - file:
+            short: f
+            value_name: file
+            long: from-file
+            about: Used for parsing URLs to download from a file
+            takes_value: true

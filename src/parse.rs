@@ -90,6 +90,24 @@ fn downloader(target: &str) -> Result<()> {
     }
 }
 
+pub fn arg_dl(links: Vec<String>) {
+    for link in links.iter(){
+
+        if link == "" {
+            println!("No link found. Exiting...");
+            return
+        } else if link == "\n" {
+            return
+        } else {
+            let result = downloader(&link);
+            match result {
+                Ok(_) => println!("Success.\n"),
+                Err(_) => println!("An Error Occurred.\n"),
+            }
+        }
+    }
+}
+
 /// Initializes the download function then passes on the target link
 /// to the downloader function
 fn download_logic(item: &rss::Item) {
