@@ -75,10 +75,7 @@ pub fn read_watch_list(set_path: &String) -> rusqlite::Result<Vec<Watchlist>> {
     let mut stmt = conn.prepare("SELECT * FROM watchlist")?;
     // Execute the query. Returns the values into a Watchlist Struct
     let stored_watch_list = stmt.query_map(NO_PARAMS, |row| {
-        Ok(Watchlist {
-            title: row.get(1)?,
-            option: row.get(2)?,
-        })
+        Ok(Watchlist::new().build(row.get(1)?, row.get(2)?))
     })?;
     // Push the returned values into a Vector
     let mut watch_list = Vec::new();
