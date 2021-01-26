@@ -268,6 +268,33 @@ pub fn get_settings(key: &String) -> rusqlite::Result<String> {
     Ok(dir)
 }
 
+pub fn get_url() -> String {
+    let url: String;
+    if get_settings(&String::from("url")).unwrap() == "" {
+        url = String::from("https://nyaa.si/?page=rss");
+    } else {
+        url = get_settings(&String::from("url")).unwrap();
+    }
+    url
+}
+
+pub fn get_wl() -> Vec<Watchlist> {
+    // Read the watchlist from the database
+    let set_dir = settings_dir();
+    let watch_list = read_watch_list(&set_dir).expect("Failed to unpack vectors");
+    watch_list
+}
+
+pub fn wl_builder(item: String, opt: String) -> Vec<Watchlist> {
+    let wl_build = Watchlist {
+        title: item,
+        option: opt,
+    };
+    let mut wl = Vec::new();
+    wl.push(wl_build);
+    wl
+}
+
 pub fn set_check() {
     let set_path = settings_dir();
     if Path::new(&set_path).exists() {
