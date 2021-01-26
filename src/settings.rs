@@ -18,6 +18,54 @@ pub struct Watchlist {
     pub option: String,
 }
 
+impl Settings {
+    // Default Settings
+    fn default() -> Settings {
+        // Gets the home directory
+        let mut dl_dir = dirs::home_dir().expect("Failed to extract home directory");
+        dl_dir.push("Transmission");
+        dl_dir.push("torrent-ingest");
+        let dl_dir = String::from(dl_dir.to_str().unwrap());
+
+        let mut ar_dir = dirs::home_dir().expect("Failed to extract home directory");
+        ar_dir.push("Transmission");
+        ar_dir.push("torrent-ingest");
+        ar_dir.push("archive");
+        let ar_dir = String::from(ar_dir.to_str().unwrap());
+
+        Settings {
+            dl_key: String::from("dl-dir"),
+            dl_val: dl_dir,
+            ar_key: String::from("ar-dir"),
+            ar_val: ar_dir,
+            url_key: String::from("url"),
+            url_val: String::from("https://nyaa.si/?page=rss"),
+        }
+    }
+}
+
+impl Watchlist {
+    fn new() -> Watchlist{
+        Watchlist {
+            title: String::from(""),
+            option: String::from("")
+        }
+    }
+    fn build(mut self, title: String, option: String) -> Watchlist {
+        self.title = title;
+        self.option = option;
+        self
+    }
+
+    // Default Watchlist
+    fn default() -> Watchlist {
+        Watchlist {
+            title: String::from(""),
+            option: String::from("non-vid"),
+        }
+    }
+}
+
 /// Function that returns the values inside the watchlist table
 pub fn read_watch_list(set_path: &String) -> rusqlite::Result<Vec<Watchlist>> {
     // Open the database
@@ -43,35 +91,10 @@ pub fn read_watch_list(set_path: &String) -> rusqlite::Result<Vec<Watchlist>> {
 
 /// Checks if the config directory exists and then creates it if it's not found.
 pub fn write_settings() {
-    // Gets the home directory
-    let mut dl_dir = dirs::home_dir().expect("Failed to extract home directory");
-    dl_dir.push("Transmission");
-    dl_dir.push("torrent-ingest");
-    let dl_dir = String::from(dl_dir.to_str().unwrap());
-
-    let mut ar_dir = dirs::home_dir().expect("Failed to extract home directory");
-    ar_dir.push("Transmission");
-    ar_dir.push("torrent-ingest");
-    ar_dir.push("archive");
-    let ar_dir = String::from(ar_dir.to_str().unwrap());
-
-    // Default Settings
-    let default_set = Settings {
-        dl_key: String::from("dl-dir"),
-        dl_val: dl_dir,
-        ar_key: String::from("ar-dir"),
-        ar_val: ar_dir,
-        url_key: String::from("url"),
-        url_val: String::from("https://nyaa.si/?page=rss"),
-    };
-
-    // Default Watchlist
-    let default_wl = Watchlist {
-        title: String::from(""),
-        option: String::from("non-vid"),
-    };
-
+    let default_set = Settings::default();
+    let default_wl = Watchlist::default();
     let set_file = settings_dir();
+
     let mut directory = dirs::config_dir().unwrap();
     directory.push("nyaadle");
 
@@ -286,10 +309,7 @@ pub fn get_wl() -> Vec<Watchlist> {
 }
 
 pub fn wl_builder(item: String, opt: String) -> Vec<Watchlist> {
-    let wl_build = Watchlist {
-        title: item,
-        option: opt,
-    };
+    let wl_build = Watchlist::new().build(item, opt);
     let mut wl = Vec::new();
     wl.push(wl_build);
     wl
