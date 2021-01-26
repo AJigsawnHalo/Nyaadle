@@ -162,7 +162,12 @@ pub fn feed_check(url: String, watch_list: Vec<Watchlist>) {
 /// - A resolution number. This is used for video items.
 ///     Example: `1080p`, `720p`, `480p`
 /// - `non-vid`. This is used for other items such as Books, Software, or Audio.
-pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir: String, check: bool) {
+pub fn nyaadle_logic(
+    items: Vec<rss::Item>,
+    watch_list: Vec<Watchlist>,
+    set_dir: String,
+    check: bool,
+) {
     let chk = check;
     let non_opt = String::from("non-vid");
     println!("Checking watch-list...\n");
@@ -186,7 +191,7 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir:
                     if option == non_opt {
                         if chk == true {
                             println!("Found {}\n", &check);
-                            continue
+                            continue;
                         } else {
                             download_logic(item);
                         }
@@ -198,7 +203,7 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, set_dir:
                     } else if check.contains(&option) {
                         if chk == true {
                             println!("Found {}\n", &check);
-                            continue
+                            continue;
                         } else {
                             println!("Selecting {}p version", &opt2);
                             download_logic(item);
