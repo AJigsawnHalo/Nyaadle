@@ -1161,7 +1161,7 @@ dependencies = [
 
 [[package]]
 name = "nyaadle"
-version = "2.3.0-dev.1"
+version = "2.3.0"
 dependencies = [
  "clap",
  "cursive",

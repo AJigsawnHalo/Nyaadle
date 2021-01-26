@@ -4,7 +4,10 @@ mod parse;
 pub mod settings;
 pub mod tui;
 use clap::{load_yaml, App};
-
+use std::{
+    fs::File,
+    io::{prelude::*, BufReader},
+};
 #[macro_use]
 extern crate error_chain;
 extern crate reqwest;
@@ -23,6 +26,63 @@ fn main() {
         } else {
             tui::main_tui();
         }
+    } else if let Some(ref args) = args.subcommand_matches("download") {
+        if args.is_present("links") {
+            let input: Vec<_> = args.values_of("links").unwrap().collect();
+            let mut links: Vec<String> = Vec::new();
+            for tgt in input {
+                let link = tgt.to_string();
+                links.push(link);
+            }
+
+            parse::arg_dl(links);
+        } else if args.is_present("file") {
+            let input = args.value_of("file").unwrap();
+            let file = File::open(input).expect("Failed to open file");
+            let buf = BufReader::new(file);
+            let links: Vec<String> = buf
+                .lines()
+                .map(|l| l.expect("Failed to read line"))
+                .collect();
+
+            parse::arg_dl(links);
+        }
+    } else if let Some(ref args) = args.subcommand_matches("parse") {
+        if args.is_present("feed")
+            && args.is_present("item") == false
+            && args.is_present("vid-opt") == false
+        {
+            let url = args.value_of("feed").unwrap().to_string();
+            let wl = settings::get_wl();
+            parse::feed_parser(url, wl);
+        } else if args.is_present("item")
+            && args.is_present("vid-opt")
+            && args.is_present("feed") == false
+        {
+            let item = args.value_of("item").unwrap().to_string();
+            let opt = args.value_of("vid-opt").unwrap().to_string();
+            let wl = settings::wl_builder(item, opt);
+            let url = settings::get_url();
+            parse::feed_parser(url, wl);
+        } else if args.is_present("item") && args.is_present("vid-opt") == false {
+            println!("Option not found");
+            println!("Check 'nyaadle parse --help' for details");
+        } else if args.is_present("vid-opt") && args.is_present("item") == false {
+            println!("Item not found");
+            println!("Check 'nyaadle parse --help' for details");
+        } else if args.is_present("feed") && args.is_present("item") && args.is_present("vid-opt") {
+            let url = args.value_of("feed").unwrap().to_string();
+            let item = args.value_of("item").unwrap().to_string();
+            let opt = args.value_of("vid-opt").unwrap().to_string();
+
+            let wl = settings::wl_builder(item, opt);
+
+            parse::feed_parser(url, wl);
+        }
+    } else if args.is_present("check") {
+        let url = settings::get_url();
+        let wl = settings::get_wl();
+        parse::feed_check(url, wl);
     } else {
         default_logic();
     }
@@ -30,5 +90,7 @@ fn main() {
 
 fn default_logic() {
     settings::set_check();
-    parse::feed_parser();
+    let url = settings::get_url();
+    let wl = settings::get_wl();
+    parse::feed_parser(url, wl);
 }
