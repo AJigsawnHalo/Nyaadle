@@ -177,6 +177,7 @@ pub fn nyaadle_logic(
         let option = anime.option;
         if &title == "" {
             println!("Please set a watch-list in the config file in: {}", set_dir);
+            break;
         } else if &title == "Skip" {
             println!("Skipping 1080p check.\n");
             continue;
@@ -200,6 +201,7 @@ pub fn nyaadle_logic(
                             "Please set download option in the config file: {}",
                             &set_dir
                         );
+                        break;
                     } else if check.contains(&option) {
                         if chk == true {
                             println!("Found {}\n", &check);
