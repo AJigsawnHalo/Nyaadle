@@ -137,10 +137,9 @@ pub fn feed_parser(url: String, watch_list: Vec<Watchlist>) {
         std::process::exit(0)
     });
     let items = channel.into_items();
-    let set_dir = settings::settings_dir();
 
     // Execute the main logic
-    nyaadle_logic(items, watch_list, set_dir, false);
+    nyaadle_logic(items, watch_list, false);
 }
 
 pub fn feed_check(url: String, watch_list: Vec<Watchlist>) {
@@ -150,10 +149,9 @@ pub fn feed_check(url: String, watch_list: Vec<Watchlist>) {
         std::process::exit(0)
     });
     let items = channel.into_items();
-    let set_dir = settings::settings_dir();
 
     // Execute the main logic
-    nyaadle_logic(items, watch_list, set_dir, true);
+    nyaadle_logic(items, watch_list, true);
 }
 /// Main logic for the function.
 /// The function iterates on the Vector `watch_list` and compares it to the `items` returned by the website.
@@ -165,7 +163,6 @@ pub fn feed_check(url: String, watch_list: Vec<Watchlist>) {
 pub fn nyaadle_logic(
     items: Vec<rss::Item>,
     watch_list: Vec<Watchlist>,
-    set_dir: String,
     check: bool,
 ) {
     let chk = check;
@@ -176,7 +173,7 @@ pub fn nyaadle_logic(
         let title = anime.title;
         let option = anime.option;
         if &title == "" {
-            println!("Please set a watch-list in the config file in: {}", set_dir);
+            println!("Please set a watch-list by running 'nyaadle tui --watch-list'");
             break;
         } else if &title == "Skip" {
             println!("Skipping 1080p check.\n");
@@ -198,8 +195,7 @@ pub fn nyaadle_logic(
                         }
                     } else if option == String::from("") {
                         println!(
-                            "Please set download option in the config file: {}",
-                            &set_dir
+                            "Please set a download option using 'nyaadle tui --watch-list'"
                         );
                         break;
                     } else if check.contains(&option) {
