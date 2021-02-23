@@ -934,11 +934,11 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.11"
+version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fabed175da42fed1fa0746b0ea71f412aa9d35e76e95e59b192c64b9dc2bf8b"
+checksum = "51b9bbe6c47d51fc3e1a9b945965946b4c44142ab8792c50835a980d362c2710"
 dependencies = [
- "cfg-if 0.1.10",
+ "cfg-if 1.0.0",
 ]
 
 [[package]]
@@ -1161,16 +1161,18 @@ dependencies = [
 
 [[package]]
 name = "nyaadle"
-version = "2.3.2"
+version = "2.4.0"
 dependencies = [
  "clap",
  "cursive",
  "cursive_table_view",
  "dirs",
  "error-chain",
+ "log",
  "reqwest",
  "rss",
  "rusqlite",
+ "simplelog",
 ]
 
 [[package]]
@@ -1788,6 +1790,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "16f1d0fef1604ba8f7a073c7e701f213e056707210e9020af4528e0101ce11a6"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "simplelog"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4bc0ffd69814a9b251d43afcabf96dad1b29f5028378056257be9e3fecc9f720"
+dependencies = [
+ "chrono",
+ "log",
+ "termcolor",
 ]
 
 [[package]]

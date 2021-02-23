@@ -10,6 +10,8 @@ struct Settings {
     ar_val: String,
     url_key: String,
     url_val: String,
+    log_key: String,
+    log_val: String,
 }
 /// Public Watchlist Struct
 #[derive(Clone, Debug)]
@@ -33,6 +35,12 @@ impl Settings {
         ar_dir.push("archive");
         let ar_dir = String::from(ar_dir.to_str().unwrap());
 
+        let mut log_path = dirs::config_dir().unwrap(); 
+        log_path.push("nyaadle");
+        log_path.push("nyaadle");
+        log_path.set_extension("log");
+        let log_path = String::from(log_path.to_str().unwrap());
+
         Settings {
             dl_key: String::from("dl-dir"),
             dl_val: dl_dir,
@@ -40,6 +48,8 @@ impl Settings {
             ar_val: ar_dir,
             url_key: String::from("url"),
             url_val: String::from("https://nyaa.si/?page=rss"),
+            log_key: String::from("log"),
+            log_val: log_path,
         }
     }
 }
@@ -111,6 +121,7 @@ pub fn write_settings() {
         let db_ar_write = db_write_dir(&set_file, &default_set.ar_key, &default_set.ar_val);
         let db_dl_write = db_write_dir(&set_file, &default_set.dl_key, &default_set.dl_val);
         let db_url_write = db_write_dir(&set_file, &default_set.url_key, &default_set.url_val);
+        let db_log_write = db_write_dir(&set_file, &default_set.log_key, &default_set.log_val);
 
         // Append watch-list to nyaadle.db
         let db_wl_write = db_write_wl(&set_file, &default_wl.title, &default_wl.option);
@@ -119,6 +130,7 @@ pub fn write_settings() {
             && db_dl_write == Ok(())
             && db_wl_write == Ok(())
             && db_url_write == Ok(())
+            && db_log_write == Ok(())
         {
             println!("nyaadle.db created.");
             println!(
@@ -320,4 +332,19 @@ pub fn set_check() {
         write_settings();
         return;
     }
+}
+
+pub fn get_log() -> String {
+    let log_dir: String;
+    let mut log_path_default = dirs::config_dir().unwrap(); 
+    log_path_default.push("nyaadle");
+    log_path_default.push("nyaadle");
+    log_path_default.set_extension("log");
+
+    if get_settings(&String::from("log")).unwrap() == "" {
+        log_dir = String::from(log_path_default.to_str().unwrap());
+    } else {
+        log_dir = get_settings(&String::from("log")).unwrap();
+    }
+    log_dir
 }

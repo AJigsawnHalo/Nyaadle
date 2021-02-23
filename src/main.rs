@@ -5,15 +5,33 @@ pub mod settings;
 pub mod tui;
 use clap::{load_yaml, App};
 use std::{
-    fs::File,
+    fs::{File, OpenOptions},
     io::{prelude::*, BufReader},
 };
+use simplelog::*;
 #[macro_use]
 extern crate error_chain;
 extern crate reqwest;
+#[macro_use]extern crate log;
 
 /// The main function of the program.
 fn main() {
+    // Setup the logging macro and functions
+    let log_path = settings::get_log();
+    let time_format = String::from("%y-%b-%d %a %H:%M:%S");
+    let log_file = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .create(true)
+        .open(log_path).unwrap();
+    let conf = ConfigBuilder::new()
+    .set_time_format(time_format)
+    .set_time_to_local(true)
+    .build();
+
+    WriteLogger::init(LevelFilter::Info, conf, log_file).unwrap();
+
+    // Arguments parser
     let yaml = load_yaml!("args.yaml");
     let args = App::from(yaml).get_matches();
 
@@ -54,6 +72,7 @@ fn main() {
         {
             let url = args.value_of("feed").unwrap().to_string();
             let wl = settings::get_wl();
+            info!("Nyaadle started in parse mode.");
             parse::feed_parser(url, wl);
         } else if args.is_present("item")
             && args.is_present("vid-opt")
@@ -63,6 +82,7 @@ fn main() {
             let opt = args.value_of("vid-opt").unwrap().to_string();
             let wl = settings::wl_builder(item, opt);
             let url = settings::get_url();
+            info!("Nyaadle started in parse mode.");
             parse::feed_parser(url, wl);
         } else if args.is_present("item") && args.is_present("vid-opt") == false {
             println!("Option not found");
@@ -77,6 +97,7 @@ fn main() {
 
             let wl = settings::wl_builder(item, opt);
 
+            info!("Nyaadle started in parse mode.");
             parse::feed_parser(url, wl);
         }
     } else if args.is_present("check") {
@@ -89,6 +110,7 @@ fn main() {
 }
 
 fn default_logic() {
+    info!("Nyaadle started normally.");
     settings::set_check();
     let url = settings::get_url();
     let wl = settings::get_wl();

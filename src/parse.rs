@@ -8,6 +8,7 @@ use std::fs::File;
 use std::io::copy;
 use std::path::Path;
 
+
 error_chain! {
     foreign_links {
         Io(std::io::Error);
@@ -36,7 +37,7 @@ fn archive_check(target: &str, archive_dir: &String) -> String {
 
 /// Function that takes in a link and downloads it to the specified path.
 /// Returns either an `Ok` or an `Err`.
-fn downloader(target: &str) -> Result<()> {
+fn downloader(target: &str, wl_title: &String) -> Result<u8> {
     // Get the download dir from the Settings.toml file
     let dl_dir = settings::get_settings(&String::from("dl-dir")).unwrap();
     let archive_dir = settings::get_settings(&String::from("ar-dir")).unwrap();
@@ -52,7 +53,7 @@ fn downloader(target: &str) -> Result<()> {
     let check = archive_check(&target, &archive_dir);
     if check == "Found" {
         println!("File Found. Skipping Download");
-        return Ok(());
+        return Ok(0);
     } else {
         // Normal download location
         let mut response = reqwest::get(target)?;
@@ -85,44 +86,55 @@ fn downloader(target: &str) -> Result<()> {
             File::create(fname)?
         };
         copy(&mut response, &mut archive)?;
+        info!("Downloaded {}", wl_title);
 
-        Ok(())
+        Ok(1)
     }
 }
 
 pub fn arg_dl(links: Vec<String>) {
+	info!("Nyaadle is started in download mode.");
+	let mut num_dl = 0;
     for link in links.iter() {
         if link == "" {
             println!("No link found. Exiting...");
             return;
         } else if link == "\n" {
-            return;
+            break;
         } else {
-            let result = downloader(&link);
+            let result = downloader(&link, &link.to_string());
             match result {
-                Ok(_) => println!("Success.\n"),
-                Err(_) => println!("An Error Occurred.\n"),
-            }
+                Ok(r) => r,
+                Err(_) => 0,
+            };
+            num_dl = num_dl + result.unwrap();
         }
     }
+    if num_dl == 0 {
+    	info!("No items downloaded.");
+    } else {
+    	info!("{} items downloaded.", num_dl);
+    }
+    info!("Nyaadle closed.");
 }
 
 /// Initializes the download function then passes on the target link
 /// to the downloader function
-fn download_logic(item: &rss::Item) {
+fn download_logic(item: &rss::Item, wl_title: String) -> u8 {
     // Get the link of the item
+    let e: u8 = 0;
     let title = item.title().expect("Failed to extract title");
     println!("Downloading {}", title);
     let link = item.link();
     let target = match link {
         Some(link) => link,
-        _ => return,
+        _ => return 0,
     };
     // Download the given link
-    let result = downloader(target);
+    let result = downloader(target, &wl_title);
     match result {
-        Ok(_) => println!("Success.\n"),
-        Err(_) => println!("An Error Occurred.\n"),
+        Ok(r) => r,
+        Err(_) => e
     }
 }
 
@@ -134,24 +146,31 @@ pub fn feed_parser(url: String, watch_list: Vec<Watchlist>) {
     // Create a channel for the rss feed and return a vector of items.
     let channel = Channel::from_url(&url).unwrap_or_else(|_e| {
         println!("Unable to connect to website. Exiting...");
+        error!("Unable to connect to website");
+        info!("Nyaadle closed.");
         std::process::exit(0)
     });
     let items = channel.into_items();
 
     // Execute the main logic
     nyaadle_logic(items, watch_list, false);
+    info!("Nyaadle closed.");
 }
 
 pub fn feed_check(url: String, watch_list: Vec<Watchlist>) {
     // Create a channel for the rss feed and return a vector of items.
+    info!("Nyaadle started in checking mode.");
     let channel = Channel::from_url(&url).unwrap_or_else(|_e| {
         println!("Unable to connect to website. Exiting...");
+        error!("Unable to connect to website");
+        info!("Nyaadle closed.");
         std::process::exit(0)
     });
     let items = channel.into_items();
 
     // Execute the main logic
     nyaadle_logic(items, watch_list, true);
+    info!("Nyaadle closed.");
 }
 /// Main logic for the function.
 /// The function iterates on the Vector `watch_list` and compares it to the `items` returned by the website.
@@ -167,12 +186,14 @@ pub fn nyaadle_logic(
 ) {
     let chk = check;
     let non_opt = String::from("non-vid");
+    let mut num_dl: u8 = 0;
     println!("Checking watch-list...\n");
     for anime in watch_list {
         // Transform anime into a string so it would be usable in the comparison.
         let title = anime.title;
         let option = anime.option;
         if &title == "" {
+            warn!("Watch-list not found.");
             println!("Please set a watch-list by running 'nyaadle tui --watch-list'");
             break;
         } else if &title == "Skip" {
@@ -191,9 +212,11 @@ pub fn nyaadle_logic(
                             println!("Found {}\n", &check);
                             continue;
                         } else {
-                            download_logic(item);
+                            let result = download_logic(item, (&check).to_string());
+                            num_dl = num_dl + result;
                         }
                     } else if option == String::from("") {
+                    	warn!("Download Option not found.");
                         println!(
                             "Please set a download option using 'nyaadle tui --watch-list'"
                         );
@@ -204,11 +227,17 @@ pub fn nyaadle_logic(
                             continue;
                         } else {
                             println!("Selecting {}p version", &opt2);
-                            download_logic(item);
+                            let result = download_logic(item, (&check).to_string());
+                            num_dl = num_dl + result;
                         }
                     }
                 }
             }
         }
+    }
+    if num_dl == 0 {
+    	info!("No items downloaded.");
+    } else {
+    	info!("{} items downloaded.", num_dl);
     }
 }
