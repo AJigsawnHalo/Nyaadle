@@ -35,7 +35,7 @@ impl Settings {
         ar_dir.push("archive");
         let ar_dir = String::from(ar_dir.to_str().unwrap());
 
-        let mut log_path = dirs::config_dir().unwrap(); 
+        let mut log_path = dirs::config_dir().unwrap();
         log_path.push("nyaadle");
         log_path.push("nyaadle");
         log_path.set_extension("log");
@@ -55,10 +55,10 @@ impl Settings {
 }
 
 impl Watchlist {
-    fn new() -> Watchlist{
+    fn new() -> Watchlist {
         Watchlist {
             title: String::from(""),
-            option: String::from("")
+            option: String::from(""),
         }
     }
     fn build(mut self, title: String, option: String) -> Watchlist {
@@ -336,7 +336,7 @@ pub fn set_check() {
 
 pub fn get_log() -> String {
     let log_dir: String;
-    let mut log_path_default = dirs::config_dir().unwrap(); 
+    let mut log_path_default = dirs::config_dir().unwrap();
     log_path_default.push("nyaadle");
     log_path_default.push("nyaadle");
     log_path_default.set_extension("log");

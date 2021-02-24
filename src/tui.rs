@@ -430,7 +430,7 @@ fn log_edit(s: &mut Cursive, item: &str) {
 
     // Function that runs when the <Ok> button is pressed
     fn ok(s: &mut Cursive, set_path: &String, dir_key: &String, value: String) {
-        let mut log_path_default = dirs::config_dir().unwrap(); 
+        let mut log_path_default = dirs::config_dir().unwrap();
         log_path_default.push("nyaadle");
         log_path_default.push("nyaadle");
         log_path_default.set_extension("log");
@@ -442,4 +442,3 @@ fn log_edit(s: &mut Cursive, item: &str) {
         s.pop_layer();
     }
 }
-

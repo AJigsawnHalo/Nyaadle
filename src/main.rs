@@ -4,15 +4,15 @@ mod parse;
 pub mod settings;
 pub mod tui;
 use clap::{load_yaml, App};
+use simplelog::*;
 use std::{
     fs::{File, OpenOptions},
     io::{prelude::*, BufReader},
 };
-use simplelog::*;
 #[macro_use]
 extern crate error_chain;
-extern crate reqwest;
-#[macro_use]extern crate log;
+#[macro_use]
+extern crate log;
 
 /// The main function of the program.
 fn main() {
@@ -23,11 +23,12 @@ fn main() {
         .write(true)
         .append(true)
         .create(true)
-        .open(log_path).unwrap();
+        .open(log_path)
+        .unwrap();
     let conf = ConfigBuilder::new()
-    .set_time_format(time_format)
-    .set_time_to_local(true)
-    .build();
+        .set_time_format(time_format)
+        .set_time_to_local(true)
+        .build();
 
     WriteLogger::init(LevelFilter::Info, conf, log_file).unwrap();
 

@@ -8,7 +8,6 @@ use std::fs::File;
 use std::io::copy;
 use std::path::Path;
 
-
 error_chain! {
     foreign_links {
         Io(std::io::Error);
@@ -93,8 +92,8 @@ fn downloader(target: &str, wl_title: &String) -> Result<u8> {
 }
 
 pub fn arg_dl(links: Vec<String>) {
-	info!("Nyaadle is started in download mode.");
-	let mut num_dl = 0;
+    info!("Nyaadle is started in download mode.");
+    let mut num_dl = 0;
     for link in links.iter() {
         if link == "" {
             println!("No link found. Exiting...");
@@ -111,9 +110,9 @@ pub fn arg_dl(links: Vec<String>) {
         }
     }
     if num_dl == 0 {
-    	info!("No items downloaded.");
+        info!("No items downloaded.");
     } else {
-    	info!("{} items downloaded.", num_dl);
+        info!("{} items downloaded.", num_dl);
     }
     info!("Nyaadle closed.");
 }
@@ -134,7 +133,7 @@ fn download_logic(item: &rss::Item, wl_title: String) -> u8 {
     let result = downloader(target, &wl_title);
     match result {
         Ok(r) => r,
-        Err(_) => e
+        Err(_) => e,
     }
 }
 
@@ -179,11 +178,7 @@ pub fn feed_check(url: String, watch_list: Vec<Watchlist>) {
 /// - A resolution number. This is used for video items.
 ///     Example: `1080p`, `720p`, `480p`
 /// - `non-vid`. This is used for other items such as Books, Software, or Audio.
-pub fn nyaadle_logic(
-    items: Vec<rss::Item>,
-    watch_list: Vec<Watchlist>,
-    check: bool,
-) {
+pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, check: bool) {
     let chk = check;
     let non_opt = String::from("non-vid");
     let mut num_dl: u8 = 0;
@@ -196,9 +191,6 @@ pub fn nyaadle_logic(
             warn!("Watch-list not found.");
             println!("Please set a watch-list by running 'nyaadle tui --watch-list'");
             break;
-        } else if &title == "Skip" {
-            println!("Skipping 1080p check.\n");
-            continue;
         } else {
             println!("Checking for {}", &title);
             // Iterate in the array items
@@ -216,10 +208,8 @@ pub fn nyaadle_logic(
                             num_dl = num_dl + result;
                         }
                     } else if option == String::from("") {
-                    	warn!("Download Option not found.");
-                        println!(
-                            "Please set a download option using 'nyaadle tui --watch-list'"
-                        );
+                        warn!("Download Option not found.");
+                        println!("Please set a download option using 'nyaadle tui --watch-list'");
                         break;
                     } else if check.contains(&option) {
                         if chk == true {
@@ -236,8 +226,8 @@ pub fn nyaadle_logic(
         }
     }
     if num_dl == 0 {
-    	info!("No items downloaded.");
+        info!("No items downloaded.");
     } else {
-    	info!("{} items downloaded.", num_dl);
+        info!("{} items downloaded.", num_dl);
     }
 }
