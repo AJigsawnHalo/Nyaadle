@@ -92,7 +92,7 @@ fn downloader(target: &str, wl_title: &String) -> Result<u8> {
 }
 
 pub fn arg_dl(links: Vec<String>) {
-    info!("Nyaadle is started in download mode.");
+    info!("Nyaadle started in download mode.");
     let mut num_dl = 0;
     for link in links.iter() {
         if link == "" {
@@ -110,11 +110,10 @@ pub fn arg_dl(links: Vec<String>) {
         }
     }
     if num_dl == 0 {
-        info!("No items downloaded.");
+        info!("No items downloaded. Nyaadle closed.");
     } else {
-        info!("{} items downloaded.", num_dl);
+        info!("{} items downloaded. Nyaadle closed.", num_dl);
     }
-    info!("Nyaadle closed.");
 }
 
 /// Initializes the download function then passes on the target link
@@ -145,15 +144,13 @@ pub fn feed_parser(url: String, watch_list: Vec<Watchlist>) {
     // Create a channel for the rss feed and return a vector of items.
     let channel = Channel::from_url(&url).unwrap_or_else(|_e| {
         println!("Unable to connect to website. Exiting...");
-        error!("Unable to connect to website");
-        info!("Nyaadle closed.");
+        error!("Unable to connect to website. Nyaadle closed.");
         std::process::exit(0)
     });
     let items = channel.into_items();
 
     // Execute the main logic
     nyaadle_logic(items, watch_list, false);
-    info!("Nyaadle closed.");
 }
 
 pub fn feed_check(url: String, watch_list: Vec<Watchlist>) {
@@ -161,15 +158,13 @@ pub fn feed_check(url: String, watch_list: Vec<Watchlist>) {
     info!("Nyaadle started in checking mode.");
     let channel = Channel::from_url(&url).unwrap_or_else(|_e| {
         println!("Unable to connect to website. Exiting...");
-        error!("Unable to connect to website");
-        info!("Nyaadle closed.");
+        error!("Unable to connect to website. Nyaadle closed.");
         std::process::exit(0)
     });
     let items = channel.into_items();
 
     // Execute the main logic
     nyaadle_logic(items, watch_list, true);
-    info!("Nyaadle closed.");
 }
 /// Main logic for the function.
 /// The function iterates on the Vector `watch_list` and compares it to the `items` returned by the website.
@@ -226,8 +221,8 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, check: b
         }
     }
     if num_dl == 0 {
-        info!("No items downloaded.");
+        info!("No items downloaded. Nyaadle closed.");
     } else {
-        info!("{} items downloaded.", num_dl);
+        info!("{} items downloaded. Nyaadle closed.", num_dl);
     }
 }
