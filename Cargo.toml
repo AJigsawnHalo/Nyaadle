@@ -8,7 +8,7 @@ description = "A small rss parser and downloader for a certain cat-themed websit
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rss = { version = "1.8.0", features = ["from_url"] }
+rss = { version = "~1.9.0", features = ["from_url"] }
 reqwest = "0.9.24"
 error-chain = "0.12.2"
 dirs = "2.0.2"
