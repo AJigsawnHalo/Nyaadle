@@ -3,6 +3,7 @@
 
 use crate::settings;
 use crate::settings::Watchlist;
+use opener;
 use rss::Channel;
 use std::fs::File;
 use std::io::copy;
@@ -100,6 +101,14 @@ pub fn arg_dl(links: Vec<String>) {
             return;
         } else if link == "\n" {
             break;
+        } else if link.contains("magnet:") {
+            match opener::open(&link) {
+                Ok(_) => {
+                    println!("Opening magnet link...");
+                    num_dl = num_dl + 1;
+                }
+                Err(_) => println!("Error. Path not found."),
+            };
         } else {
             let result = downloader(&link, &link.to_string());
             match result {
@@ -128,11 +137,19 @@ fn download_logic(item: &rss::Item, wl_title: String) -> u8 {
         Some(link) => link,
         _ => return 0,
     };
-    // Download the given link
-    let result = downloader(target, &wl_title);
-    match result {
-        Ok(r) => r,
-        Err(_) => e,
+    //FIXME: There's currently no way of checking if the item has already been downloaded.
+    if target.contains("magnet:") {
+        match opener::open(&target) {
+            Ok(_) => 1,
+            Err(_) => e,
+        }
+    } else {
+        // Download the given link
+        let result = downloader(target, &wl_title);
+        match result {
+            Ok(r) => r,
+            Err(_) => e,
+        }
     }
 }
 
