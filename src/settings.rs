@@ -165,6 +165,15 @@ fn db_create(set_path: &String) -> rusqlite::Result<()> {
             ",
         NO_PARAMS,
     )?;
+    // Create the item_tracker table
+    conn.execute(
+        "create table if not exists item_tracker (
+            id integer primary key,
+            item blob not null unique,
+            latest blob not null unique)
+            ",
+        NO_PARAMS,
+    )?;
 
     Ok(())
 }
@@ -211,7 +220,6 @@ pub fn update_write_dir(
 
     while let Some(_rows) = rows.next()? {
         num_match += 1;
-        println!("num_match = '{}'", &num_match);
     }
     if num_match != 0 {
         // Insert the values into the table
@@ -347,4 +355,62 @@ pub fn get_log() -> String {
         log_dir = get_settings(&String::from("log")).unwrap();
     }
     log_dir
+}
+pub fn update_tracking(
+    set_path: &String,
+    trck_key: &String,
+    trck_val: &String,
+) -> rusqlite::Result<()> {
+    // Collect the directory values
+    let mut trck = std::collections::HashMap::new();
+    trck.insert(trck_key, trck_val);
+
+    // Establish a connection to the database
+    let conn = Connection::open(&set_path)?;
+
+    let mut stmt = conn.prepare("select latest from item_tracker where item = (?1)")?;
+    let mut rows = stmt.query(params![&trck_key])?;
+
+    let mut num_match = 0;
+
+    while let Some(_rows) = rows.next()? {
+        num_match += 1;
+    }
+    if num_match != 0 {
+        // Insert the values into the table
+        for (key, val) in &trck {
+            conn.execute(
+                "update item_tracker set latest = (?2)
+                where item = (?1)",
+                &[&key.to_string(), &val.to_string()],
+            )?;
+        }
+    } else if num_match == 0 {
+        conn.execute(
+            "insert into item_tracker (item, latest) values (?1, ?2)",
+            &[&trck_key.to_string(), &trck_val.to_string()],
+        )?;
+    }
+    // return an Ok value
+    Ok(())
+}
+pub fn get_tracking(key: &String) -> rusqlite::Result<String> {
+    // Get the settings path
+    let set_dir = settings_dir();
+    db_create(&set_dir)?;
+
+    // Establish a connection to the database
+    let conn = Connection::open(set_dir)?;
+    // Prepare the query
+    let mut stmt = conn.prepare("SELECT latest FROM item_tracker WHERE item = :name")?;
+    // execute the query
+    let rows = stmt.query_map_named(named_params! { ":name": &key }, |row| row.get(0))?;
+
+    // push the returned value into a String
+    let mut trck = String::new();
+    for trck_result in rows {
+        trck = trck_result.unwrap();
+    }
+    // Return the directory path
+    Ok(trck)
 }
