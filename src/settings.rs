@@ -220,7 +220,6 @@ pub fn update_write_dir(
 
     while let Some(_rows) = rows.next()? {
         num_match += 1;
-        println!("num_match = '{}'", &num_match);
     }
     if num_match != 0 {
         // Insert the values into the table
@@ -376,7 +375,6 @@ pub fn update_tracking(
 
     while let Some(_rows) = rows.next()? {
         num_match += 1;
-        println!("num_match = '{}'", &num_match);
     }
     if num_match != 0 {
         // Insert the values into the table

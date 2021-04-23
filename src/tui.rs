@@ -100,7 +100,6 @@ pub fn arg_tui(item: &str) {
 
 /// The Watch-list Editor TUI
 fn wle_tui(s: &mut Cursive) {
-    println!("Watch List");
     // Removes the previous layer
     s.pop_layer();
     // get the settings dir
@@ -224,7 +223,6 @@ fn delete_item(s: &mut Cursive) {
 
 /// The Settings Editor TUI
 fn set_tui(s: &mut Cursive) {
-    println!("Settings");
     // Remove the previous layer
     s.pop_layer();
     // Set-up the Settings SelectView
