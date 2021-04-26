@@ -17,6 +17,7 @@ extern crate log;
 /// The main function of the program.
 fn main() {
     // Setup the logging macro and functions
+    settings::set_check();
     let log_path = settings::get_log();
     let time_format = String::from("%y-%b-%d %a %H:%M:%S");
     let log_file = OpenOptions::new()
@@ -111,8 +112,8 @@ fn main() {
 }
 
 fn default_logic() {
-    info!("Nyaadle started normally.");
     settings::set_check();
+    info!("Nyaadle started normally.");
     let url = settings::get_url();
     let wl = settings::get_wl();
     parse::feed_parser(url, wl);

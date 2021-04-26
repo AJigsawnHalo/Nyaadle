@@ -1,5 +1,6 @@
 use dirs;
 use rusqlite::{named_params, params, Connection, NO_PARAMS};
+use std::fs::File;
 use std::path::Path;
 
 /// Settings Struct
@@ -122,6 +123,11 @@ pub fn write_settings() {
         let db_dl_write = db_write_dir(&set_file, &default_set.dl_key, &default_set.dl_val);
         let db_url_write = db_write_dir(&set_file, &default_set.url_key, &default_set.url_val);
         let db_log_write = db_write_dir(&set_file, &default_set.log_key, &default_set.log_val);
+        let db_log_file = File::create(&default_set.log_val);
+        match db_log_file {
+            Ok(_) => println!("Created log file."),
+            Err(_) => println!("Failed to create log file"),
+        }
 
         // Append watch-list to nyaadle.db
         let db_wl_write = db_write_wl(&set_file, &default_wl.title, &default_wl.option);
