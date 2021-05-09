@@ -3,7 +3,6 @@
 
 use crate::settings;
 use crate::settings::Watchlist;
-use opener;
 use rss::Channel;
 use std::fs::File;
 use std::io::copy;
@@ -18,7 +17,7 @@ error_chain! {
 
 /// Checks if the `target` has been already downloaded and archived
 /// Returns either `Found` or `Empty`
-fn archive_check(target: &str, archive_dir: &String) -> String {
+fn archive_check(target: &str, archive_dir: &str) -> String {
     let dir = archive_dir;
     let response = reqwest::get(target).unwrap();
     let fname = response
@@ -37,23 +36,23 @@ fn archive_check(target: &str, archive_dir: &String) -> String {
 
 /// Function that takes in a link and downloads it to the specified path.
 /// Returns either an `Ok` or an `Err`.
-fn downloader(target: &str, title: &String) -> Result<u8> {
+fn downloader(target: &str, title: &str) -> Result<u8> {
     // Get the download dir from the Settings.toml file
     let dl_dir = settings::get_settings(&String::from("dl-dir")).unwrap();
     let archive_dir = settings::get_settings(&String::from("ar-dir")).unwrap();
 
     // Check if the download/archive location exists
-    if Path::new(&dl_dir).exists() == false {
+    if !Path::new(&dl_dir).exists() {
         std::fs::create_dir_all(Path::new(&dl_dir)).expect("Failed to create directory");
     }
-    if Path::new(&archive_dir).exists() == false {
+    if !Path::new(&archive_dir).exists() {
         std::fs::create_dir_all(Path::new(&archive_dir)).expect("Failed to create directory");
     }
 
     let check = archive_check(&target, &archive_dir);
     if check == "Found" {
         println!("File Found. Skipping Download");
-        return Ok(0);
+        Ok(0)
     } else {
         // Normal download location
         let mut response = reqwest::get(target)?;
@@ -96,29 +95,25 @@ pub fn arg_dl(links: Vec<String>) {
     info!("Nyaadle started in download mode.");
     let mut num_dl = 0;
     for link in links.iter() {
-        if link == "" {
+        if link.is_empty() {
             println!("No link found. Exiting...");
             return;
         } else if link == "\n" {
             break;
         } else {
-            if tracking_check(link.to_string(), &link.to_string()) == false {
+            if !tracking_check(link.to_string(), &link.to_string()) {
                 if link.contains("magnet:") {
                     match opener::open(&link) {
                         Ok(_) => {
                             println!("Opening magnet link...");
-                            num_dl = num_dl + 1;
+                            num_dl += 1;
                         }
                         Err(_) => println!("Error. Path not found."),
                     };
                     info!("Downloaded magnet link.");
                 } else {
                     let result = downloader(&link, &link.to_string());
-                    match result {
-                        Ok(r) => r,
-                        Err(_) => 0,
-                    };
-                    num_dl = num_dl + result.unwrap();
+                    num_dl += result.unwrap_or(0);
                 }
             }
             if num_dl == 0 {
@@ -132,10 +127,10 @@ pub fn arg_dl(links: Vec<String>) {
 
 /// Initializes the download function then passes on the target link
 /// to the downloader function
-fn download_logic(item: &rss::Item, wl_title: &String) -> u8 {
+fn download_logic(item: &rss::Item, wl_title: &str) -> u8 {
     let e: u8 = 0;
     let title = item.title().expect("Failed to extract title");
-    if tracking_check((&title).to_string(), &wl_title) == true {
+    if tracking_check((&title).to_string(), &wl_title) {
         e
     } else {
         // Get the link of the item
@@ -162,17 +157,17 @@ fn download_logic(item: &rss::Item, wl_title: &String) -> u8 {
         }
     }
 }
-fn tracking_check(item: String, wl_title: &String) -> bool {
+fn tracking_check(item: String, wl_title: &str) -> bool {
     let set_path = settings::settings_dir();
     let trck = settings::get_tracking(&wl_title).expect("Failed to get tracking.");
 
-    if &trck == &item {
+    if trck == item {
         println!("Item already downloaded. Skipping...");
-        return true;
+        true
     } else {
         match settings::update_tracking(&set_path, &wl_title, &item) {
-            Ok(_) => return false,
-            Err(_) => return false,
+            Ok(_) => false,
+            Err(_) => false,
         }
     }
 }
@@ -223,7 +218,7 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, check: b
         // Transform anime into a string so it would be usable in the comparison.
         let title = anime.title;
         let option = anime.option;
-        if &title == "" {
+        if title.is_empty() {
             warn!("Watch-list not found.");
             println!("Please set a watch-list by running 'nyaadle tui --watch-list'");
             break;
@@ -235,24 +230,24 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, check: b
                 let check = item.title().expect("Failed to extract Post title");
                 if check.contains(&title) {
                     if option == non_opt {
-                        if chk == true {
+                        if chk {
                             println!("Found {}\n", &check);
                             continue;
                         } else {
                             let result = download_logic(item, &title);
-                            num_dl = num_dl + result;
+                            num_dl += result;
                         }
-                    } else if option == String::from("") {
+                    } else if option == *"" {
                         warn!("Download Option not found.");
                         println!("Please set a download option using 'nyaadle tui --watch-list'");
                         break;
                     } else if check.contains(&option) {
-                        if chk == true {
+                        if chk {
                             println!("Found {}\n", &check);
                             continue;
                         } else {
                             let result = download_logic(item, &title);
-                            num_dl = num_dl + result;
+                            num_dl += result;
                         }
                     }
                 }

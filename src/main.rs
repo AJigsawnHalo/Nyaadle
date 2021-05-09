@@ -68,17 +68,12 @@ fn main() {
             parse::arg_dl(links);
         }
     } else if let Some(ref args) = args.subcommand_matches("parse") {
-        if args.is_present("feed")
-            && args.is_present("item") == false
-            && args.is_present("vid-opt") == false
-        {
+        if args.is_present("feed") && !args.is_present("item") && !args.is_present("vid-opt") {
             let url = args.value_of("feed").unwrap().to_string();
             let wl = settings::get_wl();
             info!("Nyaadle started in parse mode.");
             parse::feed_parser(url, wl);
-        } else if args.is_present("item")
-            && args.is_present("vid-opt")
-            && args.is_present("feed") == false
+        } else if args.is_present("item") && args.is_present("vid-opt") && !args.is_present("feed")
         {
             let item = args.value_of("item").unwrap().to_string();
             let opt = args.value_of("vid-opt").unwrap().to_string();
@@ -86,10 +81,10 @@ fn main() {
             let url = settings::get_url();
             info!("Nyaadle started in parse mode.");
             parse::feed_parser(url, wl);
-        } else if args.is_present("item") && args.is_present("vid-opt") == false {
+        } else if args.is_present("item") && !args.is_present("vid-opt") {
             println!("Option not found");
             println!("Check 'nyaadle parse --help' for details");
-        } else if args.is_present("vid-opt") && args.is_present("item") == false {
+        } else if args.is_present("vid-opt") && !args.is_present("item") {
             println!("Item not found");
             println!("Check 'nyaadle parse --help' for details");
         } else if args.is_present("feed") && args.is_present("item") && args.is_present("vid-opt") {
