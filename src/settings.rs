@@ -1,4 +1,3 @@
-use dirs;
 use rusqlite::{named_params, params, Connection, NO_PARAMS};
 use std::fs::File;
 use std::path::Path;
@@ -78,7 +77,7 @@ impl Watchlist {
 }
 
 /// Function that returns the values inside the watchlist table
-pub fn read_watch_list(set_path: &String) -> rusqlite::Result<Vec<Watchlist>> {
+pub fn read_watch_list(set_path: &str) -> rusqlite::Result<Vec<Watchlist>> {
     // Open the database
     let conn = Connection::open(set_path)?;
 
@@ -109,12 +108,10 @@ pub fn write_settings() {
     let directory = String::from(directory.to_str().unwrap());
 
     // If the settings file doesn't exist, create it.
-    if Path::new(&set_file).exists() {
-        return;
-    } else {
+    if !Path::new(&set_file).exists() {
         println!("nyaadle.db not found. Creating it right now.");
         // create directory
-        if Path::new(&directory).exists() == false {
+        if !Path::new(&directory).exists() {
             std::fs::create_dir(&directory).expect("Unable to create directory");
         }
         // Create nyaadle.db and add dl-dir
@@ -150,7 +147,7 @@ pub fn write_settings() {
 }
 
 /// Function to create a database with the default tables
-fn db_create(set_path: &String) -> rusqlite::Result<()> {
+fn db_create(set_path: &str) -> rusqlite::Result<()> {
     let conn = Connection::open(&set_path)?;
 
     // Create the directories table
@@ -185,7 +182,7 @@ fn db_create(set_path: &String) -> rusqlite::Result<()> {
 }
 
 /// Funtion to write the directory values to the directories table
-pub fn db_write_dir(set_path: &String, dir_key: &String, dir_val: &String) -> rusqlite::Result<()> {
+pub fn db_write_dir(set_path: &str, dir_key: &str, dir_val: &str) -> rusqlite::Result<()> {
     // Collect the directory values
     let mut dir = std::collections::HashMap::new();
     dir.insert(dir_key, dir_val);
@@ -207,11 +204,7 @@ pub fn db_write_dir(set_path: &String, dir_key: &String, dir_val: &String) -> ru
 }
 
 /// Function that updates the directory in the database
-pub fn update_write_dir(
-    set_path: &String,
-    dir_key: &String,
-    dir_val: &String,
-) -> rusqlite::Result<()> {
+pub fn update_write_dir(set_path: &str, dir_key: &str, dir_val: &str) -> rusqlite::Result<()> {
     // Collect the directory values
     let mut dir = std::collections::HashMap::new();
     dir.insert(dir_key, dir_val);
@@ -246,7 +239,7 @@ pub fn update_write_dir(
     Ok(())
 }
 /// Function to write the watchlist values to the watchlist table
-pub fn db_write_wl(set_path: &String, wl_key: &String, wl_val: &String) -> rusqlite::Result<()> {
+pub fn db_write_wl(set_path: &str, wl_key: &str, wl_val: &str) -> rusqlite::Result<()> {
     // Collect the watchlist values
     let mut wl = std::collections::HashMap::new();
     wl.insert(wl_key, wl_val);
@@ -268,7 +261,7 @@ pub fn db_write_wl(set_path: &String, wl_key: &String, wl_val: &String) -> rusql
 }
 
 /// Deletes the item in the database
-pub fn db_delete_wl(set_path: &String, wl_key: &String) -> rusqlite::Result<()> {
+pub fn db_delete_wl(set_path: &str, wl_key: &str) -> rusqlite::Result<()> {
     let conn = Connection::open(&set_path)?;
 
     conn.execute("delete from watchlist where name = (?1)", params![wl_key])?;
@@ -294,7 +287,7 @@ pub fn settings_dir() -> String {
 
 /// Function that returns the values for the directories.
 /// This allows us to read the settings set by the user.
-pub fn get_settings(key: &String) -> rusqlite::Result<String> {
+pub fn get_settings(key: &str) -> rusqlite::Result<String> {
     // Get the settings path
     let set_dir = settings_dir();
 
@@ -327,24 +320,20 @@ pub fn get_url() -> String {
 pub fn get_wl() -> Vec<Watchlist> {
     // Read the watchlist from the database
     let set_dir = settings_dir();
-    let watch_list = read_watch_list(&set_dir).expect("Failed to unpack vectors");
-    watch_list
+    read_watch_list(&set_dir).expect("Failed to unpack vectors")
 }
 
 pub fn wl_builder(item: String, opt: String) -> Vec<Watchlist> {
     let wl_build = Watchlist::new().build(item, opt);
-    let mut wl = Vec::new();
-    wl.push(wl_build);
+    let wl = vec![wl_build];
     wl
 }
 
 pub fn set_check() {
     let set_path = settings_dir();
-    if Path::new(&set_path).exists() {
-        return;
-    } else {
+
+    if !Path::new(&set_path).exists() {
         write_settings();
-        return;
     }
 }
 
@@ -362,11 +351,7 @@ pub fn get_log() -> String {
     }
     log_dir
 }
-pub fn update_tracking(
-    set_path: &String,
-    trck_key: &String,
-    trck_val: &String,
-) -> rusqlite::Result<()> {
+pub fn update_tracking(set_path: &str, trck_key: &str, trck_val: &str) -> rusqlite::Result<()> {
     // Collect the directory values
     let mut trck = std::collections::HashMap::new();
     trck.insert(trck_key, trck_val);
@@ -400,7 +385,7 @@ pub fn update_tracking(
     // return an Ok value
     Ok(())
 }
-pub fn get_tracking(key: &String) -> rusqlite::Result<String> {
+pub fn get_tracking(key: &str) -> rusqlite::Result<String> {
     // Get the settings path
     let set_dir = settings_dir();
     db_create(&set_dir)?;

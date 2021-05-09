@@ -103,7 +103,7 @@ fn wle_tui(s: &mut Cursive) {
     // Removes the previous layer
     s.pop_layer();
     // get the settings dir
-    let set_path = settings::settings_dir().to_string();
+    let set_path = settings::settings_dir();
     // read the items from the database
     let items = settings::read_watch_list(&set_path).expect("Failed to unpack vectors");
 
@@ -156,8 +156,8 @@ fn add_item(s: &mut Cursive) {
 
     // Function runs when the <Ok> button is pressed
     fn ok(s: &mut Cursive, value: String, opt: String) {
-        if &value != "" && &opt != "" {
-            let set_path = settings::settings_dir().to_string();
+        if !&value.is_empty() && !&opt.is_empty() {
+            let set_path = settings::settings_dir();
             let list = Watchlist {
                 title: value,
                 option: opt,
@@ -204,7 +204,7 @@ fn add_item(s: &mut Cursive) {
 /// Deletes the currently selected item in the watch-list
 fn delete_item(s: &mut Cursive) {
     // Get the settings dir
-    let set_path = settings::settings_dir().to_string();
+    let set_path = settings::settings_dir();
     // retrieve the WLE table
     let mut table = s
         .find_name::<TableView<Watchlist, WatchColumn>>("watch-list")
@@ -267,7 +267,7 @@ fn on_submit_set(s: &mut Cursive, item: &str) {
 /// Dialog box to edit the Archive Directory
 fn ar_edit(s: &mut Cursive, item: &str) {
     // get the settings dir
-    let set_path = settings::settings_dir().to_string();
+    let set_path = settings::settings_dir();
     // get the current archive directory
     let ar_dir = settings::get_settings(&String::from(item)).unwrap();
     // transform the &str item to a String
@@ -299,7 +299,7 @@ fn ar_edit(s: &mut Cursive, item: &str) {
     );
 
     // Function that runs when <Ok> is pressed
-    fn ok(s: &mut Cursive, set_path: &String, dir_key: &String, value: String) {
+    fn ok(s: &mut Cursive, set_path: &str, dir_key: &str, value: String) {
         settings::update_write_dir(&set_path, &dir_key, &value)
             .expect("Failed to write to database");
         s.pop_layer();
@@ -309,7 +309,7 @@ fn ar_edit(s: &mut Cursive, item: &str) {
 /// Dialog box to edit the Downloads Directory
 fn dl_edit(s: &mut Cursive, item: &str) {
     // get the settings dir
-    let set_path = settings::settings_dir().to_string();
+    let set_path = settings::settings_dir();
     // get the current download dir
     let dl_dir = settings::get_settings(&String::from(item)).unwrap();
     // transform the &str item to String
@@ -341,7 +341,7 @@ fn dl_edit(s: &mut Cursive, item: &str) {
     );
 
     // Function that runs when the <Ok> button is pressed
-    fn ok(s: &mut Cursive, set_path: &String, dir_key: &String, value: String) {
+    fn ok(s: &mut Cursive, set_path: &str, dir_key: &str, value: String) {
         settings::update_write_dir(&set_path, &dir_key, &value)
             .expect("Failed to write to database");
         s.pop_layer();
@@ -351,7 +351,7 @@ fn dl_edit(s: &mut Cursive, item: &str) {
 /// Dialog box to edit the Downloads Directory
 fn url_edit(s: &mut Cursive, item: &str) {
     // get the settings dir
-    let set_path = settings::settings_dir().to_string();
+    let set_path = settings::settings_dir();
     // get the current url
     let url = settings::get_settings(&String::from(item)).unwrap();
     // transform the &str item to String
@@ -383,9 +383,9 @@ fn url_edit(s: &mut Cursive, item: &str) {
     );
 
     // Function that runs when the <Ok> button is pressed
-    fn ok(s: &mut Cursive, set_path: &String, dir_key: &String, value: String) {
+    fn ok(s: &mut Cursive, set_path: &str, dir_key: &str, value: String) {
         let mut val = value;
-        if val == "" {
+        if val.is_empty() {
             val = String::from("https://nyaa.si/?page=rss");
         }
         settings::update_write_dir(&set_path, &dir_key, &val).expect("Failed to write to database");
@@ -395,7 +395,7 @@ fn url_edit(s: &mut Cursive, item: &str) {
 /// Dialog box to edit the Downloads Directory
 fn log_edit(s: &mut Cursive, item: &str) {
     // get the settings dir
-    let set_path = settings::settings_dir().to_string();
+    let set_path = settings::settings_dir();
     // get the current url
     let url = settings::get_settings(&String::from(item)).unwrap();
     // transform the &str item to String
@@ -427,13 +427,13 @@ fn log_edit(s: &mut Cursive, item: &str) {
     );
 
     // Function that runs when the <Ok> button is pressed
-    fn ok(s: &mut Cursive, set_path: &String, dir_key: &String, value: String) {
+    fn ok(s: &mut Cursive, set_path: &str, dir_key: &str, value: String) {
         let mut log_path_default = dirs::config_dir().unwrap();
         log_path_default.push("nyaadle");
         log_path_default.push("nyaadle");
         log_path_default.set_extension("log");
         let mut val = value;
-        if val == "" {
+        if val.is_empty() {
             val = String::from(log_path_default.to_str().unwrap());
         }
         settings::update_write_dir(&set_path, &dir_key, &val).expect("Failed to write to database");
