@@ -385,6 +385,49 @@ pub fn update_tracking(set_path: &str, trck_key: &str, trck_val: &str) -> rusqli
     // return an Ok value
     Ok(())
 }
+pub fn update_wl(
+    set_path: &str,
+    wl_old_key: &str,
+    wl_new_key: &str,
+    wl_opt: &str,
+) -> rusqlite::Result<()> {
+    // Collect the directory values
+    let mut item = std::collections::HashMap::new();
+    item.insert(wl_old_key, wl_new_key);
+
+    // Establish a connection to the database
+    let conn = Connection::open(&set_path)?;
+
+    let mut stmt = conn.prepare("select name from watchlist where name = (?1)")?;
+    let mut rows = stmt.query(params![&wl_old_key])?;
+
+    let mut num_match = 0;
+
+    while let Some(_rows) = rows.next()? {
+        num_match += 1;
+    }
+    if num_match != 0 {
+        // Insert the values into the table
+        for (_key, _val) in &item {
+            conn.execute(
+                "update watchlist set name = (?2), option = (?3)
+                where name = (?1)",
+                &[
+                    &wl_old_key.to_string(),
+                    &wl_new_key.to_string(),
+                    &wl_opt.to_string(),
+                ],
+            )?;
+        }
+    } else if num_match == 0 {
+        conn.execute(
+            "insert into watchlist (name, option) values (?1, ?2)",
+            &[&wl_new_key.to_string(), &wl_opt.to_string()],
+        )?;
+    }
+    // return an Ok value
+    Ok(())
+}
 pub fn get_tracking(key: &str) -> rusqlite::Result<String> {
     // Get the settings path
     let set_dir = settings_dir();
