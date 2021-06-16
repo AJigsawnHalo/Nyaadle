@@ -120,7 +120,7 @@ fn wle_tui(s: &mut Cursive) {
     // Comprised of the Add and Delete Buttons
     let buttons_left = LinearLayout::horizontal()
         .child(Button::new("Add", add_item))
-        .child(DummyView)
+        .child(Button::new("Edit", edit_item))
         .child(Button::new("Delete", delete_item));
     // Buttons at the right side of the TUI
     // Comprised of Navigation Buttons (Back and Quit)
@@ -197,6 +197,77 @@ fn add_item(s: &mut Cursive) {
                 })
                 .unwrap();
             ok(s, value, opt);
+        }),
+    )
+}
+// Edits the selected item.
+fn edit_item(s: &mut Cursive) {
+    let table = s
+        .find_name::<TableView<Watchlist, WatchColumn>>("watch-list")
+        .unwrap();
+    let index = table.item().unwrap();
+    let item = table.borrow_item(index).expect("No Item Selected");
+    let old_title = &item.title;
+    let old_opt = &item.option;
+    // Set-up the EditViews
+    let edit_title = EditView::new()
+        .content(&*old_title)
+        .with_name("title_edit")
+        .fixed_width(50);
+
+    let edit_option = EditView::new()
+        .content(&*old_opt)
+        .with_name("opt_edit")
+        .fixed_width(10);
+
+    let title_text = TextView::new("Title:");
+    let option_text = TextView::new("Option:");
+
+    // Function runs when the <Ok> button is pressed
+    fn ok(s: &mut Cursive, old_val: &str, value: &str, opt: String) {
+        if !&value.is_empty() && !&opt.is_empty() {
+            let set_path = settings::settings_dir();
+            let list = Watchlist {
+                title: value.to_string(),
+                option: opt,
+            };
+            settings::update_wl(&set_path, &old_val, &list.title, &list.option)
+                .expect("Failed to write to database.");
+            s.pop_layer();
+            wle_tui(s); // This is a workaround. Find a way to just update the table.
+        } else {
+            s.pop_layer();
+        }
+    }
+
+    // Sets up the Add Item Dialog
+    s.add_layer(
+        Dialog::around(
+            LinearLayout::vertical()
+                .child(title_text)
+                .child(edit_title)
+                .child(option_text)
+                .child(edit_option),
+        )
+        .button("Ok", |s| {
+            let value = s
+                .call_on_name("title_edit", |view: &mut EditView| {
+                    view.get_content().to_string()
+                })
+                .unwrap();
+            let opt = s
+                .call_on_name("opt_edit", |view: &mut EditView| {
+                    view.get_content().to_string()
+                })
+                .unwrap();
+            let table = s
+                .find_name::<TableView<Watchlist, WatchColumn>>("watch-list")
+                .unwrap();
+            let index = table.item().expect("No item selected.");
+            let item = table.borrow_item(index).unwrap();
+            let old_val = &item.title;
+
+            ok(s, &old_val, &value, opt);
         }),
     )
 }

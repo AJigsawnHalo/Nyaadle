@@ -1,5 +1,5 @@
 name: Nyaadle
-version: "2.5.2"
+version: "2.6.0-dev.1"
 author: Joash Christian L. <nightlock0326@gmail.com>
 about: A small rss parser and downloader for a certain cat-themed website
 after_help: "EXAMPLE:\n    nyaadle\n    nyaadle tui\n    nyaadle dl -l https://foo.bar/bar.file"
