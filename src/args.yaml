@@ -1,5 +1,5 @@
 name: Nyaadle
-version: "2.6.0-dev.2"
+version: "2.6.0-dev.3"
 author: Joash Christian L. <nightlock0326@gmail.com>
 about: A small rss parser and downloader for a certain cat-themed website
 after_help: "EXAMPLE:\n    nyaadle\n    nyaadle tui\n    nyaadle dl -l https://foo.bar/bar.file"
@@ -34,7 +34,7 @@ subcommands:
             long: links
             about: Used for parsing URLs to download from the command-line
             takes_value: true
-            multiple: true
+            multiple_values: true
             value_name: URL
         - file:
             short: f
