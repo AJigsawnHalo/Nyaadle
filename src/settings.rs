@@ -418,6 +418,10 @@ pub fn update_wl(
                     &wl_opt.to_string(),
                 ],
             )?;
+            conn.execute(
+                "update item_tracker set item = (?2) where item = (?1)",
+                &[&wl_old_key.to_string(), &wl_new_key.to_string()],
+            )?;
         }
     } else if num_match == 0 {
         conn.execute(
