@@ -11,7 +11,7 @@ args:
 subcommands:
   - tui:
       visible_alias: t
-      about: Opens an terminal interface to adjust watch-lists and settings
+      about: Opens a terminal interface to adjust watch-lists and settings
       after_help: "ALIAS:\n     t\n\nEXAMPLE:\n     nyaadle tui\n     nyaadle t --settings\n     nyaadle t -w"
       args:
         - settings:
@@ -40,7 +40,7 @@ subcommands:
             short: f
             value_name: file
             long: from-file
-            about: Used for parsing URLs to download from a file
+            about: Used for parsing URLs to download from a given file
             takes_value: true
   - parse:
       visible_alias: p
