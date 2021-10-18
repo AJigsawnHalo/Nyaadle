@@ -108,7 +108,7 @@ fn main() {
 
 fn default_logic() {
     settings::set_check();
-    info!("Nyaadle started normally.");
+    debug!("Nyaadle started normally.");
     let url = settings::get_url();
     let wl = settings::get_wl();
     parse::feed_parser(url, wl);

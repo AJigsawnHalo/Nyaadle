@@ -119,7 +119,7 @@ pub fn arg_dl(links: Vec<String>) {
         }
     }
     if num_dl == 0 {
-        info!("No items downloaded. Nyaadle closed.");
+        debug!("No items downloaded. Nyaadle closed.");
     } else {
         info!("{} items downloaded. Nyaadle closed.", num_dl);
     }
@@ -255,7 +255,7 @@ pub fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, check: b
         }
     }
     if num_dl == 0 {
-        info!("No items downloaded. Nyaadle closed.");
+        debug!("No items downloaded. Nyaadle closed.");
     } else {
         info!("{} items downloaded. Nyaadle closed.", num_dl);
     }
