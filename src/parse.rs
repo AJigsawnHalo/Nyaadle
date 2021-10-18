@@ -117,7 +117,7 @@ pub fn arg_dl(links: Vec<String>) {
                 }
             }
             if num_dl == 0 {
-                debug!("No items downloaded. Nyaadle closed.");
+                info!("No items downloaded. Nyaadle closed.");
             } else {
                 info!("{} items downloaded. Nyaadle closed.", num_dl);
             }
