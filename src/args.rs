@@ -91,7 +91,8 @@ fn arg_p(sub_m: &ArgMatches) {
             } else {
                 let item = sub_m.value_of("item").unwrap().to_string();
                 let opt = sub_m.value_of("vid-opt").unwrap().to_string();
-                let wl = settings::wl_builder(item, opt);
+                let temp_id = 0;
+                let wl = settings::wl_builder(temp_id, item, opt);
                 info!("Nyaadle started in parse mode. Feed used: \"{}\"", &url);
                 parse::feed_parser(url, wl);
             }

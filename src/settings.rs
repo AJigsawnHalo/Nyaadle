@@ -16,6 +16,7 @@ struct Settings {
 /// Public Watchlist Struct
 #[derive(Clone, Debug)]
 pub struct Watchlist {
+    pub id: i32,
     pub title: String,
     pub option: String,
 }
@@ -57,11 +58,13 @@ impl Settings {
 impl Watchlist {
     fn new() -> Watchlist {
         Watchlist {
+            id: 0,
             title: String::from(""),
             option: String::from(""),
         }
     }
-    fn build(mut self, title: String, option: String) -> Watchlist {
+    fn build(mut self, id: i32, title: String, option: String) -> Watchlist {
+        self.id = id;
         self.title = title;
         self.option = option;
         self
@@ -70,6 +73,7 @@ impl Watchlist {
     // Default Watchlist
     fn default() -> Watchlist {
         Watchlist {
+            id: 0,
             title: String::from(""),
             option: String::from("non-vid"),
         }
@@ -85,7 +89,7 @@ pub fn read_watch_list(set_path: &str) -> rusqlite::Result<Vec<Watchlist>> {
     let mut stmt = conn.prepare("SELECT * FROM watchlist")?;
     // Execute the query. Returns the values into a Watchlist Struct
     let stored_watch_list = stmt.query_map(NO_PARAMS, |row| {
-        Ok(Watchlist::new().build(row.get(1)?, row.get(2)?))
+        Ok(Watchlist::new().build(row.get(0)?, row.get(1)?, row.get(2)?))
     })?;
     // Push the returned values into a Vector
     let mut watch_list = Vec::new();
@@ -323,8 +327,8 @@ pub fn get_wl() -> Vec<Watchlist> {
     read_watch_list(&set_dir).expect("Failed to unpack vectors")
 }
 
-pub fn wl_builder(item: String, opt: String) -> Vec<Watchlist> {
-    let wl_build = Watchlist::new().build(item, opt);
+pub fn wl_builder(id: i32, item: String, opt: String) -> Vec<Watchlist> {
+    let wl_build = Watchlist::new().build(id, item, opt);
     let wl = vec![wl_build];
     wl
 }
