@@ -113,7 +113,7 @@ fn wle_tui(s: &mut Cursive) {
     // Set-up the Watch-list Editor TableView
     let mut table = TableView::<Watchlist, WatchColumn>::new()
         .column(WatchColumn::Id, "ID", |c| c.width(5))
-        .column(WatchColumn::Title, "Item Name", |c| c.width(60))
+        .column(WatchColumn::Title, "Item Name", |c| c.width(55))
         .column(WatchColumn::Option, "Option", |c| c.width(10))
         .default_column(WatchColumn::Title);
 
@@ -162,7 +162,7 @@ fn add_item(s: &mut Cursive) {
     fn ok(s: &mut Cursive, value: String, opt: String) {
         if !&value.is_empty() && !&opt.is_empty() {
             let set_path = settings::settings_dir();
-            let temp_id = 0; 
+            let temp_id = 0;
             let list = Watchlist {
                 id: temp_id,
                 title: value,

@@ -20,6 +20,7 @@ pub fn args_parser() {
             Some(("tui", sub_m)) => arg_t(sub_m),
             Some(("download", sub_m)) => arg_dl(sub_m),
             Some(("parse", sub_m)) => arg_p(sub_m),
+            Some(("settings", sub_m)) => arg_s(sub_m),
             _ => default_logic(),
         }
     }
@@ -99,6 +100,47 @@ fn arg_p(sub_m: &ArgMatches) {
         } else {
             println!("Item to be parsed not provided.");
             println!("Check 'nyaadle parse --help' for more details.")
+        }
+    }
+}
+fn arg_s(sub_m: &ArgMatches) {
+    if sub_m.is_present("dl-dir") {
+        let dir = sub_m
+            .value_of("dl-dir")
+            .expect("Unable to read given value.");
+        settings::arg_set("dl-dir", dir);
+    } else if sub_m.is_present("ar-dir") {
+        let dir = sub_m
+            .value_of("ar-dir")
+            .expect("Unable to read given value.");
+        settings::arg_set("ar-dir", dir);
+    } else if sub_m.is_present("url") {
+        let dir = sub_m.value_of("url").expect("Unable to read given value.");
+        settings::arg_set("url", dir);
+    } else if sub_m.is_present("log") {
+        let dir = sub_m.value_of("log").expect("Unable to read given value.");
+        settings::arg_set("log", dir);
+    } else if sub_m.is_present("get-url")
+        || sub_m.is_present("get-ar")
+        || sub_m.is_present("get-dl")
+        || sub_m.is_present("get-log")
+    {
+        get_set(&sub_m);
+    } else {
+        tui::arg_tui("set")
+    }
+    fn get_set(sub_m: &ArgMatches) {
+        if sub_m.is_present("get-dl") {
+            settings::arg_get_set("dl-dir");
+        }
+        if sub_m.is_present("get-ar") {
+            settings::arg_get_set("ar-dir");
+        }
+        if sub_m.is_present("get-url") {
+            settings::arg_get_set("url");
+        }
+        if sub_m.is_present("get-log") {
+            settings::arg_get_set("log");
         }
     }
 }

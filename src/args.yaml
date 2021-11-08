@@ -64,3 +64,39 @@ subcommands:
             long: option
             about: Used with `--item`. This sets the option value for the item.
             possible_values: [ '1080', '720', '480', 'non-vid' ]
+  - settings:
+      visible_alias: set
+      about: Subcommand to configure settings.
+      args:
+        - dl-dir:
+            short: d
+            long: set-dl-dir
+            about: Sets the value of the Download directory.
+            takes_value: true
+        - ar-dir:
+            short: a
+            long: set-ar-dir
+            about: Sets the value of the Archive directory.
+            takes_value: true
+        - url:
+            short: u
+            long: set-feed-url
+            about: Sets the value of the RSS Feed URL.
+            takes_value: true
+        - log:
+            short: l
+            long: set-log-file
+            about: Sets the log file location.
+            takes_value: true 
+        - get-dl:
+            long: get-dl-dir
+            about: Returns the Download Directory.
+        - get-ar:
+            long: get-ar-dir
+            about: Returns the Archive Directory.
+        - get-url:
+            long: get-feed-url
+            about: Returns the RSS Feed URL.
+        - get-log:
+            long: get-log-path
+            about: Returns the log file location.
