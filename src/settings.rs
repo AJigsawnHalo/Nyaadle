@@ -456,3 +456,24 @@ pub fn get_tracking(key: &str) -> rusqlite::Result<String> {
     // Return the directory path
     Ok(trck)
 }
+pub fn arg_set(key: &str, value: &str) {
+    let set_file = settings_dir();
+    update_write_dir(&set_file, &key, &value).expect("Failed to write to database.");
+    match key {
+        "dl-dir" => println!("Updated Download directory to \"{}\"", &value),
+        "ar-dir" => println!("Updated Archive directory to \"{}\"", &value),
+        "url" => println!("Updated RSS Feed URL to \"{}\"", &value),
+        "log" => println!("Updated log file location to \"{}\"", &value),
+        _ => println!("Unknown key value."),
+    };
+}
+pub fn arg_get_set(key: &str) {
+    let value = get_settings(&key).expect("Unable to get specified setting.");
+    match key {
+        "dl-dir" => println!("Download Directory: {}", value),
+        "ar-dir" => println!("Archive Directory: {}", value),
+        "url" => println!("RSS Feed URL: {}", value),
+        "log" => println!("Log File Path: {}", value),
+        _ => println!("Setting not found."),
+    }
+}
