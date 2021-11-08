@@ -11,6 +11,7 @@ use std::cmp::Ordering;
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 /// Columns for the Watch-list Editor
 enum WatchColumn {
+    Id,
     Title,
     Option,
 }
@@ -19,6 +20,7 @@ enum WatchColumn {
 impl TableViewItem<WatchColumn> for Watchlist {
     fn to_column(&self, column: WatchColumn) -> String {
         match column {
+            WatchColumn::Id => self.id.to_string(),
             WatchColumn::Title => self.title.to_string(),
             WatchColumn::Option => self.option.to_string(),
         }
@@ -28,6 +30,7 @@ impl TableViewItem<WatchColumn> for Watchlist {
         Self: Sized,
     {
         match column {
+            WatchColumn::Id => self.id.cmp(&other.id),
             WatchColumn::Title => self.title.cmp(&other.title),
             WatchColumn::Option => self.option.cmp(&other.option),
         }
@@ -109,6 +112,7 @@ fn wle_tui(s: &mut Cursive) {
 
     // Set-up the Watch-list Editor TableView
     let mut table = TableView::<Watchlist, WatchColumn>::new()
+        .column(WatchColumn::Id, "ID", |c| c.width(5))
         .column(WatchColumn::Title, "Item Name", |c| c.width(60))
         .column(WatchColumn::Option, "Option", |c| c.width(10))
         .default_column(WatchColumn::Title);
@@ -158,7 +162,9 @@ fn add_item(s: &mut Cursive) {
     fn ok(s: &mut Cursive, value: String, opt: String) {
         if !&value.is_empty() && !&opt.is_empty() {
             let set_path = settings::settings_dir();
+            let temp_id = 0; 
             let list = Watchlist {
+                id: temp_id,
                 title: value,
                 option: opt,
             };
@@ -227,7 +233,9 @@ fn edit_item(s: &mut Cursive) {
     fn ok(s: &mut Cursive, old_val: &str, value: &str, opt: String) {
         if !&value.is_empty() && !&opt.is_empty() {
             let set_path = settings::settings_dir();
+            let temp_id = 0;
             let list = Watchlist {
+                id: temp_id,
                 title: value.to_string(),
                 option: opt,
             };
