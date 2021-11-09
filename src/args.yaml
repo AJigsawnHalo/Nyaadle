@@ -55,8 +55,8 @@ subcommands:
             about: Parses the given RSS feed instead of the one in the database
             takes_value: true
         - item:
-            short: i
-            long: item
+            short: t
+            long: title
             about: Parses the RSS Feed for the given item. Must be used with `--option`.
             takes_value: true
         - vid-opt:
