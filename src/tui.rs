@@ -115,7 +115,7 @@ fn wle_tui(s: &mut Cursive) {
         .column(WatchColumn::Id, "ID", |c| c.width(5))
         .column(WatchColumn::Title, "Item Name", |c| c.width(55))
         .column(WatchColumn::Option, "Option", |c| c.width(10))
-        .default_column(WatchColumn::Title);
+        .default_column(WatchColumn::Id);
 
     // Inserts the items into the table
     table.set_items(items);
@@ -177,8 +177,10 @@ fn add_item(s: &mut Cursive) {
                 },
             );
             s.pop_layer();
+            wle_tui(s);
         } else {
             s.pop_layer();
+            wle_tui(s);
         }
     }
 
@@ -213,6 +215,7 @@ fn edit_item(s: &mut Cursive) {
         .unwrap();
     let index = table.item().unwrap();
     let item = table.borrow_item(index).expect("No Item Selected");
+    let id = item.id;
     let old_title = &item.title;
     let old_opt = &item.option;
     // Set-up the EditViews
@@ -230,7 +233,7 @@ fn edit_item(s: &mut Cursive) {
     let option_text = TextView::new("Option:");
 
     // Function runs when the <Ok> button is pressed
-    fn ok(s: &mut Cursive, old_val: &str, value: &str, opt: String) {
+    fn ok(s: &mut Cursive, _old_val: &str, value: &str, opt: String, id: i32) {
         if !&value.is_empty() && !&opt.is_empty() {
             let set_path = settings::settings_dir();
             let temp_id = 0;
@@ -239,12 +242,13 @@ fn edit_item(s: &mut Cursive) {
                 title: value.to_string(),
                 option: opt,
             };
-            settings::update_wl(&set_path, &old_val, &list.title, &list.option)
+            settings::update_wl(&set_path, &list.title, &list.option, &id.to_string())
                 .expect("Failed to write to database.");
             s.pop_layer();
             wle_tui(s); // This is a workaround. Find a way to just update the table.
         } else {
             s.pop_layer();
+            wle_tui(s);
         }
     }
 
@@ -257,7 +261,7 @@ fn edit_item(s: &mut Cursive) {
                 .child(option_text)
                 .child(edit_option),
         )
-        .button("Ok", |s| {
+        .button("Ok", move |s| {
             let value = s
                 .call_on_name("title_edit", |view: &mut EditView| {
                     view.get_content().to_string()
@@ -275,7 +279,7 @@ fn edit_item(s: &mut Cursive) {
             let item = table.borrow_item(index).unwrap();
             let old_val = &item.title;
 
-            ok(s, &old_val, &value, opt);
+            ok(s, &old_val, &value, opt, id);
         }),
     )
 }
@@ -294,7 +298,8 @@ fn delete_item(s: &mut Cursive) {
         // If there's a value, delete it
         Some(index) => {
             let value = table.borrow_item(index).unwrap();
-            settings::db_delete_wl(&set_path, &value.title).expect("Failed to delete item");
+            settings::db_delete_wl(&set_path, &value.id.to_string())
+                .expect("Failed to delete item");
             table.remove_item(index);
         }
     };
