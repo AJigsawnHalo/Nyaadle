@@ -1,5 +1,5 @@
 name: Nyaadle
-version: "2.6.0-dev.5"
+version: "2.6.0-dev.6"
 author: Joash Christian L. <nightlock0326@gmail.com>
 about: A small rss parser and downloader for a certain cat-themed website
 after_help: "EXAMPLE:\n    nyaadle\n    nyaadle tui\n    nyaadle dl -l https://foo.bar/bar.file"
@@ -100,3 +100,40 @@ subcommands:
         - get-log:
             long: get-log-path
             about: Returns the log file location.
+  - watchlist:
+      visible_alias: wle
+      about: Subcommand to configure the Watchlist.
+      args:
+        - add:
+            short: a
+            long: add
+            about: Add an item
+        - delete:
+            short: d
+            about: Delete an item.
+        - edit:
+            short: e
+            long: edit
+            about: Edit an item.
+        - item:
+            short: i
+            long: item
+            about: Item ID to edit or delete.
+            takes_value: true
+            multiple_values: true
+        - value:
+            short: t
+            long: title
+            about: Name or title of the item.
+            takes_value: true
+        - option:
+            short: o
+            long: option
+            about: Item option. (Ex. 1080, 720, non-vid)
+            takes_value: true
+            possible_values: [ '1080', '720', '480', 'non-vid' ]
+        - print:
+            short: p
+            long: print
+            about: Returns the watchlist.
+

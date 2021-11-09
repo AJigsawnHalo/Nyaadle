@@ -268,7 +268,7 @@ pub fn db_write_wl(set_path: &str, wl_key: &str, wl_val: &str) -> rusqlite::Resu
 pub fn db_delete_wl(set_path: &str, wl_key: &str) -> rusqlite::Result<()> {
     let conn = Connection::open(&set_path)?;
 
-    conn.execute("delete from watchlist where name = (?1)", params![wl_key])?;
+    conn.execute("delete from watchlist where id = (?1)", params![wl_key])?;
     Ok(())
 }
 
@@ -389,44 +389,41 @@ pub fn update_tracking(set_path: &str, trck_key: &str, trck_val: &str) -> rusqli
     // return an Ok value
     Ok(())
 }
-pub fn update_wl(
-    set_path: &str,
-    wl_old_key: &str,
-    wl_new_key: &str,
-    wl_opt: &str,
-) -> rusqlite::Result<()> {
-    // Collect the directory values
-    let mut item = std::collections::HashMap::new();
-    item.insert(wl_old_key, wl_new_key);
-
+pub fn update_wl(set_path: &str, wl_new_key: &str, wl_opt: &str, id: &str) -> rusqlite::Result<()> {
     // Establish a connection to the database
     let conn = Connection::open(&set_path)?;
 
-    let mut stmt = conn.prepare("select name from watchlist where name = (?1)")?;
-    let mut rows = stmt.query(params![&wl_old_key])?;
-
+    let mut stmt = conn.prepare("select * from watchlist where id = :id")?;
+    let rows = stmt.query_map_named(&[(":id", &id)], |row| {
+        Ok(Watchlist::new().build(row.get(0)?, row.get(1)?, row.get(2)?))
+    })?;
+    let mut row_vec = Vec::new();
+    for item in rows {
+        row_vec.push(item?);
+    }
     let mut num_match = 0;
-
-    while let Some(_rows) = rows.next()? {
+    for _row in row_vec.iter() {
         num_match += 1;
     }
     if num_match != 0 {
-        // Insert the values into the table
-        for (_key, _val) in &item {
-            conn.execute(
-                "update watchlist set name = (?2), option = (?3)
-                where name = (?1)",
-                &[
-                    &wl_old_key.to_string(),
-                    &wl_new_key.to_string(),
-                    &wl_opt.to_string(),
-                ],
-            )?;
+        let mut wl_old_key: &String;
+        for item in row_vec.iter() {
+            wl_old_key = &item.title;
             conn.execute(
                 "update item_tracker set item = (?2) where item = (?1)",
                 &[&wl_old_key.to_string(), &wl_new_key.to_string()],
             )?;
         }
+        // Insert the values into the table
+        conn.execute(
+            "update watchlist set name = (?2), option = (?3)
+                where id = (?1)",
+            &[
+                &id.to_string(),
+                &wl_new_key.to_string(),
+                &wl_opt.to_string(),
+            ],
+        )?;
     } else if num_match == 0 {
         conn.execute(
             "insert into watchlist (name, option) values (?1, ?2)",
@@ -474,6 +471,6 @@ pub fn arg_get_set(key: &str) {
         "ar-dir" => println!("Archive Directory: {}", value),
         "url" => println!("RSS Feed URL: {}", value),
         "log" => println!("Log File Path: {}", value),
-        _ => println!("Setting not found."),
+        _ => unreachable!("Setting not found."),
     }
 }
