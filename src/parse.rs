@@ -116,12 +116,12 @@ pub fn arg_dl(links: Vec<String>) {
                     num_dl += result.unwrap_or(0);
                 }
             }
-            if num_dl == 0 {
-                info!("No items downloaded. Nyaadle closed.");
-            } else {
-                info!("{} items downloaded. Nyaadle closed.", num_dl);
-            }
         }
+    }
+    if num_dl == 0 {
+        info!("No items downloaded. Nyaadle closed.");
+    } else {
+        info!("{} items downloaded. Nyaadle closed.", num_dl);
     }
 }
 
