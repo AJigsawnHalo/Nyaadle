@@ -97,7 +97,8 @@ pub fn arg_dl(links: Vec<String>) {
     for link in links.iter() {
         if link.is_empty() {
             println!("No link found. Exiting...");
-            return;
+            num_dl += 0;
+            break;
         } else if link == "\n" {
             break;
         } else {
