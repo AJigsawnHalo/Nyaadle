@@ -11,6 +11,7 @@ use std::cmp::Ordering;
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 /// Columns for the Watch-list Editor
 enum WatchColumn {
+    Id,
     Title,
     Option,
 }
@@ -19,6 +20,7 @@ enum WatchColumn {
 impl TableViewItem<WatchColumn> for Watchlist {
     fn to_column(&self, column: WatchColumn) -> String {
         match column {
+            WatchColumn::Id => self.id.to_string(),
             WatchColumn::Title => self.title.to_string(),
             WatchColumn::Option => self.option.to_string(),
         }
@@ -28,6 +30,7 @@ impl TableViewItem<WatchColumn> for Watchlist {
         Self: Sized,
     {
         match column {
+            WatchColumn::Id => self.id.cmp(&other.id),
             WatchColumn::Title => self.title.cmp(&other.title),
             WatchColumn::Option => self.option.cmp(&other.option),
         }
@@ -109,9 +112,10 @@ fn wle_tui(s: &mut Cursive) {
 
     // Set-up the Watch-list Editor TableView
     let mut table = TableView::<Watchlist, WatchColumn>::new()
-        .column(WatchColumn::Title, "Item Name", |c| c.width(60))
+        .column(WatchColumn::Id, "ID", |c| c.width(5))
+        .column(WatchColumn::Title, "Item Name", |c| c.width(55))
         .column(WatchColumn::Option, "Option", |c| c.width(10))
-        .default_column(WatchColumn::Title);
+        .default_column(WatchColumn::Id);
 
     // Inserts the items into the table
     table.set_items(items);
@@ -120,7 +124,7 @@ fn wle_tui(s: &mut Cursive) {
     // Comprised of the Add and Delete Buttons
     let buttons_left = LinearLayout::horizontal()
         .child(Button::new("Add", add_item))
-        .child(DummyView)
+        .child(Button::new("Edit", edit_item))
         .child(Button::new("Delete", delete_item));
     // Buttons at the right side of the TUI
     // Comprised of Navigation Buttons (Back and Quit)
@@ -158,7 +162,9 @@ fn add_item(s: &mut Cursive) {
     fn ok(s: &mut Cursive, value: String, opt: String) {
         if !&value.is_empty() && !&opt.is_empty() {
             let set_path = settings::settings_dir();
+            let temp_id = 0;
             let list = Watchlist {
+                id: temp_id,
                 title: value,
                 option: opt,
             };
@@ -171,8 +177,10 @@ fn add_item(s: &mut Cursive) {
                 },
             );
             s.pop_layer();
+            wle_tui(s);
         } else {
             s.pop_layer();
+            wle_tui(s);
         }
     }
 
@@ -200,6 +208,81 @@ fn add_item(s: &mut Cursive) {
         }),
     )
 }
+// Edits the selected item.
+fn edit_item(s: &mut Cursive) {
+    let table = s
+        .find_name::<TableView<Watchlist, WatchColumn>>("watch-list")
+        .unwrap();
+    let index = table.item().unwrap();
+    let item = table.borrow_item(index).expect("No Item Selected");
+    let id = item.id;
+    let old_title = &item.title;
+    let old_opt = &item.option;
+    // Set-up the EditViews
+    let edit_title = EditView::new()
+        .content(&*old_title)
+        .with_name("title_edit")
+        .fixed_width(50);
+
+    let edit_option = EditView::new()
+        .content(&*old_opt)
+        .with_name("opt_edit")
+        .fixed_width(10);
+
+    let title_text = TextView::new("Title:");
+    let option_text = TextView::new("Option:");
+
+    // Function runs when the <Ok> button is pressed
+    fn ok(s: &mut Cursive, _old_val: &str, value: &str, opt: String, id: i32) {
+        if !&value.is_empty() && !&opt.is_empty() {
+            let set_path = settings::settings_dir();
+            let temp_id = 0;
+            let list = Watchlist {
+                id: temp_id,
+                title: value.to_string(),
+                option: opt,
+            };
+            settings::update_wl(&set_path, &list.title, &list.option, &id.to_string())
+                .expect("Failed to write to database.");
+            s.pop_layer();
+            wle_tui(s); // This is a workaround. Find a way to just update the table.
+        } else {
+            s.pop_layer();
+            wle_tui(s);
+        }
+    }
+
+    // Sets up the Add Item Dialog
+    s.add_layer(
+        Dialog::around(
+            LinearLayout::vertical()
+                .child(title_text)
+                .child(edit_title)
+                .child(option_text)
+                .child(edit_option),
+        )
+        .button("Ok", move |s| {
+            let value = s
+                .call_on_name("title_edit", |view: &mut EditView| {
+                    view.get_content().to_string()
+                })
+                .unwrap();
+            let opt = s
+                .call_on_name("opt_edit", |view: &mut EditView| {
+                    view.get_content().to_string()
+                })
+                .unwrap();
+            let table = s
+                .find_name::<TableView<Watchlist, WatchColumn>>("watch-list")
+                .unwrap();
+            let index = table.item().expect("No item selected.");
+            let item = table.borrow_item(index).unwrap();
+            let old_val = &item.title;
+
+            ok(s, &old_val, &value, opt, id);
+        }),
+    )
+}
 
 /// Deletes the currently selected item in the watch-list
 fn delete_item(s: &mut Cursive) {
@@ -215,7 +298,8 @@ fn delete_item(s: &mut Cursive) {
         // If there's a value, delete it
         Some(index) => {
             let value = table.borrow_item(index).unwrap();
-            settings::db_delete_wl(&set_path, &value.title).expect("Failed to delete item");
+            settings::db_delete_wl(&set_path, &value.id.to_string())
+                .expect("Failed to delete item");
             table.remove_item(index);
         }
     };

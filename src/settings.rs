@@ -16,6 +16,7 @@ struct Settings {
 /// Public Watchlist Struct
 #[derive(Clone, Debug)]
 pub struct Watchlist {
+    pub id: i32,
     pub title: String,
     pub option: String,
 }
@@ -57,11 +58,13 @@ impl Settings {
 impl Watchlist {
     fn new() -> Watchlist {
         Watchlist {
+            id: 0,
             title: String::from(""),
             option: String::from(""),
         }
     }
-    fn build(mut self, title: String, option: String) -> Watchlist {
+    fn build(mut self, id: i32, title: String, option: String) -> Watchlist {
+        self.id = id;
         self.title = title;
         self.option = option;
         self
@@ -70,6 +73,7 @@ impl Watchlist {
     // Default Watchlist
     fn default() -> Watchlist {
         Watchlist {
+            id: 0,
             title: String::from(""),
             option: String::from("non-vid"),
         }
@@ -85,7 +89,7 @@ pub fn read_watch_list(set_path: &str) -> rusqlite::Result<Vec<Watchlist>> {
     let mut stmt = conn.prepare("SELECT * FROM watchlist")?;
     // Execute the query. Returns the values into a Watchlist Struct
     let stored_watch_list = stmt.query_map(NO_PARAMS, |row| {
-        Ok(Watchlist::new().build(row.get(1)?, row.get(2)?))
+        Ok(Watchlist::new().build(row.get(0)?, row.get(1)?, row.get(2)?))
     })?;
     // Push the returned values into a Vector
     let mut watch_list = Vec::new();
@@ -264,7 +268,7 @@ pub fn db_write_wl(set_path: &str, wl_key: &str, wl_val: &str) -> rusqlite::Resu
 pub fn db_delete_wl(set_path: &str, wl_key: &str) -> rusqlite::Result<()> {
     let conn = Connection::open(&set_path)?;
 
-    conn.execute("delete from watchlist where name = (?1)", params![wl_key])?;
+    conn.execute("delete from watchlist where id = (?1)", params![wl_key])?;
     Ok(())
 }
 
@@ -323,8 +327,8 @@ pub fn get_wl() -> Vec<Watchlist> {
     read_watch_list(&set_dir).expect("Failed to unpack vectors")
 }
 
-pub fn wl_builder(item: String, opt: String) -> Vec<Watchlist> {
-    let wl_build = Watchlist::new().build(item, opt);
+pub fn wl_builder(id: i32, item: String, opt: String) -> Vec<Watchlist> {
+    let wl_build = Watchlist::new().build(id, item, opt);
     let wl = vec![wl_build];
     wl
 }
@@ -385,6 +389,50 @@ pub fn update_tracking(set_path: &str, trck_key: &str, trck_val: &str) -> rusqli
     // return an Ok value
     Ok(())
 }
+pub fn update_wl(set_path: &str, wl_new_key: &str, wl_opt: &str, id: &str) -> rusqlite::Result<()> {
+    // Establish a connection to the database
+    let conn = Connection::open(&set_path)?;
+
+    let mut stmt = conn.prepare("select * from watchlist where id = :id")?;
+    let rows = stmt.query_map_named(&[(":id", &id)], |row| {
+        Ok(Watchlist::new().build(row.get(0)?, row.get(1)?, row.get(2)?))
+    })?;
+    let mut row_vec = Vec::new();
+    for item in rows {
+        row_vec.push(item?);
+    }
+    let mut num_match = 0;
+    for _row in row_vec.iter() {
+        num_match += 1;
+    }
+    if num_match != 0 {
+        let mut wl_old_key: &String;
+        for item in row_vec.iter() {
+            wl_old_key = &item.title;
+            conn.execute(
+                "update item_tracker set item = (?2) where item = (?1)",
+                &[&wl_old_key.to_string(), &wl_new_key.to_string()],
+            )?;
+        }
+        // Insert the values into the table
+        conn.execute(
+            "update watchlist set name = (?2), option = (?3)
+                where id = (?1)",
+            &[
+                &id.to_string(),
+                &wl_new_key.to_string(),
+                &wl_opt.to_string(),
+            ],
+        )?;
+    } else if num_match == 0 {
+        conn.execute(
+            "insert into watchlist (name, option) values (?1, ?2)",
+            &[&wl_new_key.to_string(), &wl_opt.to_string()],
+        )?;
+    }
+    // return an Ok value
+    Ok(())
+}
 pub fn get_tracking(key: &str) -> rusqlite::Result<String> {
     // Get the settings path
     let set_dir = settings_dir();
@@ -404,4 +452,25 @@ pub fn get_tracking(key: &str) -> rusqlite::Result<String> {
     }
     // Return the directory path
     Ok(trck)
+}
+pub fn arg_set(key: &str, value: &str) {
+    let set_file = settings_dir();
+    update_write_dir(&set_file, &key, &value).expect("Failed to write to database.");
+    match key {
+        "dl-dir" => println!("Updated Download directory to \"{}\"", &value),
+        "ar-dir" => println!("Updated Archive directory to \"{}\"", &value),
+        "url" => println!("Updated RSS Feed URL to \"{}\"", &value),
+        "log" => println!("Updated log file location to \"{}\"", &value),
+        _ => println!("Unknown key value."),
+    };
+}
+pub fn arg_get_set(key: &str) {
+    let value = get_settings(&key).expect("Unable to get specified setting.");
+    match key {
+        "dl-dir" => println!("Download Directory: {}", value),
+        "ar-dir" => println!("Archive Directory: {}", value),
+        "url" => println!("RSS Feed URL: {}", value),
+        "log" => println!("Log File Path: {}", value),
+        _ => unreachable!("Setting not found."),
+    }
 }

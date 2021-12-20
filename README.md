@@ -25,27 +25,30 @@ If a match is found, it grabs the link and downloads it to a specified folder.
 
 ## Usage
 ```
-Nyaadle 2.2.0-dev.3
+Nyaadle 2.6.0
 A small rss parser and downloader for a certain cat-themed website
 
 USAGE:
-    nyaadle.exe [FLAGS] [SUBCOMMAND]
+    nyaadle [OPTIONS] [SUBCOMMAND]
 
-FLAGS:
+OPTIONS:
     -c, --check      Parses the RSS Feed normally but does not download anything
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+    -h, --help       Print help information
+    -V, --version    Print version information
 
 SUBCOMMANDS:
-    download    Downloads the given URL to the set downloads directory [aliases: dl]
-    help        Prints this message or the help of the given subcommand(s)
-    parse       Parses the given URL [aliases: p]
-    tui         Opens an terminal interface to adjust watch-lists and settings [aliases: t]
+    download     Downloads the given URL to the set downloads directory [aliases: dl]
+    help         Print this message or the help of the given subcommand(s)
+    parse        Parses the given URL [aliases: p]
+    settings     Subcommand to configure settings. [aliases: set]
+    tui          Opens a terminal interface to adjust watch-lists and settings [aliases: t]
+    watchlist    Subcommand to configure the Watchlist. [aliases: wle]
 
 EXAMPLE:
     nyaadle
     nyaadle tui
     nyaadle dl -l https://foo.bar/bar.file
+
 ```
 ## License
 This software is licensed under a [BSD 2-clause license](https://github.com/AJigsawnHalo/Nyaadle/blob/master/LICENSE).
