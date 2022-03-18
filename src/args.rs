@@ -257,7 +257,12 @@ pub fn args_parser() {
             vid_opt,
         }) => {
             if let Some(url) = feed {
-                item_parse(url, item, vid_opt);
+                if item == None && vid_opt == None {
+                    let wl = settings::get_wl();
+                    parse::feed_parser(url, wl);
+                } else {
+                    item_parse(url, item, vid_opt);
+                }
             } else {
                 let url = settings::get_url();
                 item_parse(url, item, vid_opt);
