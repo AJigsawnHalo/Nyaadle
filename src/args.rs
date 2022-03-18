@@ -1,29 +1,122 @@
+//use std::default;
+
 use crate::parse;
 use crate::settings;
 use crate::tui;
-use clap::{load_yaml, App, ArgMatches};
+//use clap::FromArgMatches;
+//use clap::{load_yaml, App, ArgMatches};
+use clap::{Parser, Subcommand};
+//use std::collections::linked_list;
 use std::{
     fs::File,
     io::{prelude::*, BufReader},
 };
+
+#[derive(Parser)]
+#[clap(author,version, about, long_about = None)]
+struct Cli {
+    #[clap(short, long)]
+    check: bool,
+
+    #[clap(subcommand)]
+    subcommand: Option<Subcommands>,
+}
+
+#[derive(Subcommand, Debug)]
+enum Subcommands {
+    #[clap(visible_alias = "t", subcommand_required = false)]
+    Tui {
+        #[clap(short, long)]
+        settings: bool,
+        #[clap(short, long)]
+        watchlist: bool,
+    },
+
+    #[clap(visible_alias = "dl")]
+    Download {
+        #[clap(short, long, multiple_values = true)]
+        links: Option<Vec<String>>,
+        #[clap(short, long)]
+        file: Option<String>,
+    },
+
+    #[clap(visible_alias = "p")]
+    Parse {
+        #[clap(short, long)]
+        feed: Option<String>,
+
+        #[clap(short = 't', long = "title")]
+        item: Option<String>,
+
+        #[clap(short = 'o', long = "option", possible_values = [ "1080", "720", "non-vid" ])]
+        vid_opt: Option<String>,
+    },
+}
+
 pub fn args_parser() {
     // Arguments parser
-    let yaml = load_yaml!("args.yaml");
-    let args = App::from(yaml).get_matches();
+    let args = Cli::parse();
 
-    if args.is_present("check") {
-        let url = settings::get_url();
-        let wl = settings::get_wl();
-        parse::feed_check(url, wl);
-    } else {
-        match args.subcommand() {
-            Some(("tui", sub_m)) => arg_t(sub_m),
-            Some(("download", sub_m)) => arg_dl(sub_m),
-            Some(("parse", sub_m)) => arg_p(sub_m),
-            Some(("settings", sub_m)) => arg_s(sub_m),
-            Some(("watchlist", sub_m)) => arg_w(sub_m),
-            _ => default_logic(),
+    fn arg_check(args: Cli) {
+        if args.check {
+            parse::feed_check(settings::get_url(), settings::get_wl());
+        } else {
+            default_logic();
         }
+    }
+    match args.subcommand {
+        Some(Subcommands::Tui {
+            settings,
+            watchlist,
+        }) => {
+            if settings && !watchlist {
+                tui::arg_tui("set");
+            } else if !settings && watchlist {
+                tui::arg_tui("wle");
+            } else {
+                tui::main_tui();
+            }
+        }
+        Some(Subcommands::Download { links, file }) => {
+            if let Some(urls) = links {
+                parse::arg_dl(urls);
+            }
+            if let Some(name) = file {
+                let filename = File::open(name).expect("Failed to open file.");
+                let buf = BufReader::new(filename);
+                let links: Vec<String> = buf
+                    .lines()
+                    .map(|l| l.expect("Failed to read line"))
+                    .collect();
+
+                parse::arg_dl(links);
+            }
+        }
+        Some(Subcommands::Parse {
+            feed,
+            item,
+            vid_opt,
+        }) => {
+            if let Some(url) = feed {
+                item_parse(url, item, vid_opt);
+            } else {
+                let url = settings::get_url();
+                item_parse(url, item, vid_opt);
+            }
+            fn item_parse(url: String, item_p: Option<String>, vid_opt_p: Option<String>) {
+                if let Some(title) = item_p {
+                    if let Some(opt) = vid_opt_p {
+                        let wl = settings::wl_builder(0, title, opt);
+                        parse::feed_parser(url, wl);
+                    } else {
+                        println!("An option is required. (Ex. '1080', 'non-vid')")
+                    }
+                } else {
+                    println!("Please provide an item to parse.");
+                }
+            }
+        }
+        None => arg_check(args),
     }
 }
 
@@ -34,16 +127,16 @@ fn default_logic() {
     parse::feed_parser(url, wl);
 }
 
+/*
 fn arg_t(sub_m: &ArgMatches) {
     if sub_m.is_present("settings") {
         tui::arg_tui("set");
-    } else if sub_m.is_present("watch-list") {
+    } else if sub_m.is_present("watchlist") {
         tui::arg_tui("wle");
     } else {
         tui::main_tui();
     }
 }
-
 fn arg_dl(sub_m: &ArgMatches) {
     if sub_m.is_present("links") {
         let input: Vec<_> = sub_m.values_of("links").unwrap().collect();
@@ -225,3 +318,4 @@ fn arg_w(sub_m: &ArgMatches) {
         }
     }
 }
+*/
