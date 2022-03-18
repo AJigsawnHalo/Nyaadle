@@ -55,68 +55,158 @@ enum Subcommands {
         watchlist: bool,
     },
 
-    #[clap(visible_alias = "dl")]
+    #[clap(
+        visible_alias = "dl",
+        about = "Downloads the given URL to the set downloads directory.",
+        after_help = "ALIAS:\n     dl\n\nEXAMPLE:\n    nyaadle download -l https://foo.com/bar.torrent\n    nyaadle dl -f input.file\n    nyaadle dl -l https://foo.com/bar1.file https://foo.com/bar2.file",
+        arg_required_else_help = true
+    )]
     Download {
-        #[clap(short, long, multiple_values = true)]
+        #[clap(
+            short, 
+            long, 
+            multiple_values = true,
+            help = "Used for parsing URLs to download from the command-line.",
+            value_name = "URLs",
+        )]
         links: Option<Vec<String>>,
 
-        #[clap(short, long)]
+        #[clap(
+            short, 
+            long = "from-file",
+            help = "Used for parsing URLs to download from a given file.",
+            value_name = "FILE"
+        )]
         file: Option<String>,
     },
 
-    #[clap(visible_alias = "p")]
+    #[clap(
+        visible_alias = "p",
+        about = "Parses the specified URL or Item.",
+        arg_required_else_help = true,
+        after_help = "ALIAS:\n     p\n\nEXAMPLE:\n    nyaadle parse -f https://foo.com/bar.rss\n    nyaadle p -i \"Item Title\" -o 720\n    nyaadle p -f https://foo.com/bar1.rss -i \"Item title\" -o non-vid",
+    )]
     Parse {
-        #[clap(short, long)]
+        #[clap(
+            short, 
+            long,
+            help = "Parses the given RSS feed instead of the one in the database.",
+            value_name = "URL"
+        )]
         feed: Option<String>,
 
-        #[clap(short = 't', long = "title")]
+        #[clap(
+            short = 't', 
+            long = "title",
+            value_name = "TITLE",
+            help = "Parses the RSS Feed for the given item. Must be used with `--option`."
+        )]
         item: Option<String>,
 
-        #[clap(short = 'o', long = "option", possible_values = [ "1080", "720", "non-vid" ])]
+        #[clap(
+            short = 'o', 
+            long = "option", 
+            possible_values = [ "1080", "720", "non-vid" ],
+            help = "Used with `--item`. This sets the option value for the item."
+        )]
         vid_opt: Option<String>,
     },
 
-    #[clap(visible_alias = "set")]
+    #[clap(
+        visible_alias = "set",
+        about = "Subcommand to configure settings."
+    )]
     Settings {
-        #[clap(short, long = "set-dl-dir")]
+        #[clap(
+            short, 
+            long = "set-dl-dir",
+            value_name = "PATH",
+            help = "Sets the value of the Download directory."
+        )]
         dl_dir: Option<String>,
 
-        #[clap(short, long = "set-ar-dir")]
+        #[clap(
+            short, 
+            long = "set-ar-dir",
+            value_name = "PATH",
+            help = "Sets the value of the Archive directory."
+        )]
         ar_dir: Option<String>,
 
-        #[clap(short, long = "set-feed-url")]
+        #[clap(
+            short, 
+            long = "set-feed-url",
+            value_name = "URL",
+            help = "Sets the value of the RSS Feed URL."
+        )]
         url: Option<String>,
 
-        #[clap(short, long = "set-log-file")]
+        #[clap(
+            short, 
+            long = "set-log-file",
+            value_name = "PATH",
+            help = "Sets the log file location."
+        )]
         log: Option<String>,
 
-        #[clap(long = "get-dl-dir")]
+        #[clap(
+            long = "get-dl-dir",
+            help = "Returns the Download Directory."
+        )]
         get_dl: bool,
 
-        #[clap(long = "get-ar-dir")]
+        #[clap(long = "get-ar-dir", help = "Returns the Archive Directory.")]
         get_ar: bool,
 
-        #[clap(long = "get-feed-url")]
+        #[clap(long = "get-feed-url", help = "Returns the RSS Feed URL.")]
         get_url: bool,
 
-        #[clap(long = "get-log-path")]
+        #[clap(long = "get-log-path", help = "Returns the log file location.")]
         get_log: bool,
+
+        #[clap(short, long, help = "Displays the current Settings.")]
+        print: bool,
     },
 
-    #[clap(visible_alias = "wle")]
+    #[clap(
+        visible_alias = "wle", 
+        about = "Subcommand to configure the Watchlist."
+    )]
     WatchlistEditor {
-        #[clap(short, long)]
+        #[clap(short, long, help = "Add an item.")]
         add: bool,
-        #[clap(short, long)]
+        
+        #[clap(short, long, help = "Delete an item.")]
         delete: bool,
-        #[clap(short, long)]
+
+        #[clap(short, long, help = "Edit an item.")]
         edit: bool,
-        #[clap(short, long)]
+
+        #[clap(
+            short, 
+            long, 
+            help = "Item ID to edit or delete.", 
+            multiple_values = true, 
+            value_name = "ID"
+        )]
         item: Option<Vec<String>>,
-        #[clap(short = 't', long = "title")]
+
+        #[clap(
+            short = 't', 
+            long = "title",
+            help = "Name or title of the item.",
+            value_name = "TITLE"
+        )]
         value: Option<String>,
-        #[clap(short, long)]
+
+        #[clap(
+            short, 
+            long,
+            help = "Item Option.",
+            possible_values = [ "1080", "720", "non-vid" ],
+        )]
         option: Option<String>,
+
         #[clap(short, long)]
         print: bool
     }
@@ -194,7 +284,8 @@ pub fn args_parser() {
             get_dl,
             get_ar,
             get_url,
-            get_log
+            get_log,
+            print
         }) => {
             if let Some(dl) = dl_dir {
                 settings::arg_set("dl-dir", &dl);
@@ -204,13 +295,13 @@ pub fn args_parser() {
                 settings::arg_set("url", &url)
             } else if let Some(log) = log {
                 settings::arg_set("log", &log);
-            } else if get_dl || get_ar || get_url || get_log {
-                get_set(get_dl, get_ar, get_url, get_log);
+            } else if get_dl || get_ar || get_url || get_log || print {
+                get_set(get_dl, get_ar, get_url, get_log, print);
             } else {
                 tui::arg_tui("set");
             }
 
-            fn get_set(dl: bool, ar: bool, url: bool, log: bool) {
+            fn get_set(dl: bool, ar: bool, url: bool, log: bool, print: bool) {
                 if dl {
                     settings::arg_get_set("dl-dir");
                 }
@@ -221,6 +312,12 @@ pub fn args_parser() {
                     settings::arg_get_set("url");
                 }
                 if log {
+                    settings::arg_get_set("log");
+                }
+                if print {
+                    settings::arg_get_set("dl-dir");
+                    settings::arg_get_set("ar-dir");
+                    settings::arg_get_set("url");
                     settings::arg_get_set("log");
                 }
             }
