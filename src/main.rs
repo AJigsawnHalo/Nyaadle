@@ -32,5 +32,7 @@ fn main() {
 
     WriteLogger::init(LevelFilter::Info, conf, log_file).unwrap();
 
+    // TEMPORARY FUNCTION
+    settings::get_db_ver().expect("Failed to set database version.");
     args::args_parser();
 }

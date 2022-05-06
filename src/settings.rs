@@ -12,6 +12,8 @@ struct Settings {
     url_val: String,
     log_key: String,
     log_val: String,
+    ver_key: String,
+    ver_val: String,
 }
 /// Public Watchlist Struct
 #[derive(Clone, Debug)]
@@ -51,6 +53,8 @@ impl Settings {
             url_val: String::from("https://nyaa.si/?page=rss"),
             log_key: String::from("log"),
             log_val: log_path,
+            ver_key: String::from("db-ver"),
+            ver_val: String::from("2.0"),
         }
     }
 }
@@ -305,7 +309,7 @@ pub fn get_settings(key: &str) -> rusqlite::Result<String> {
     // push the returned value into a String
     let mut dir = String::new();
     for dir_result in rows {
-        dir = dir_result.unwrap();
+        dir = dir_result.unwrap_or(String::from("empty"));
     }
     // Return the directory path
     Ok(dir)
@@ -471,6 +475,33 @@ pub fn arg_get_set(key: &str) {
         "ar-dir" => println!("Archive Directory: {}", value),
         "url" => println!("RSS Feed URL: {}", value),
         "log" => println!("Log File Path: {}", value),
+        "db-ver" => println!("Database version: {}", value),
         _ => unreachable!("Setting not found."),
+    }
+}
+
+pub fn get_db_ver() -> rusqlite::Result<()> {
+    let set_path = settings_dir();
+    let default = Settings::default();
+    // Establish a connection to the database
+    let conn = Connection::open(&set_path)?;
+
+    let mut stmt = conn.prepare("select path from directories where option = (?1)")?;
+    let mut rows = stmt.query(params![&default.ver_key])?;
+
+    let mut num_match = 0;
+
+    while let Some(_rows) = rows.next()? {
+        num_match += 1;
+    }
+    if num_match != 0 {
+        Ok(())
+    } else {
+        conn.execute(
+            "insert into directories (option, path) values (?1, ?2)",
+            &[&default.ver_key.to_string(), &default.ver_val.to_string()],
+        )?;
+        // return an Ok value
+        Ok(())
     }
 }
