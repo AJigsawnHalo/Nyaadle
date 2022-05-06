@@ -147,6 +147,9 @@ enum Subcommands {
 
         #[clap(short, long, help = "Displays the current Settings.")]
         print: bool,
+
+        #[clap(long = "get-db-ver", help = "Returns the Database version.")]
+        get_ver: bool,
     },
 
     #[clap(
@@ -272,6 +275,7 @@ pub fn args_parser() {
             get_url,
             get_log,
             print,
+            get_ver,
         }) => {
             if let Some(dl) = dl_dir {
                 settings::arg_set("dl-dir", &dl);
@@ -281,13 +285,13 @@ pub fn args_parser() {
                 settings::arg_set("url", &url)
             } else if let Some(log) = log {
                 settings::arg_set("log", &log);
-            } else if get_dl || get_ar || get_url || get_log || print {
-                get_set(get_dl, get_ar, get_url, get_log, print);
+            } else if get_dl || get_ar || get_url || get_log || print || get_ver {
+                get_set(get_dl, get_ar, get_url, get_log, print, get_ver);
             } else {
                 tui::arg_tui("set");
             }
 
-            fn get_set(dl: bool, ar: bool, url: bool, log: bool, print: bool) {
+            fn get_set(dl: bool, ar: bool, url: bool, log: bool, print: bool, ver: bool) {
                 if dl {
                     settings::arg_get_set("dl-dir");
                 }
@@ -305,6 +309,10 @@ pub fn args_parser() {
                     settings::arg_get_set("ar-dir");
                     settings::arg_get_set("url");
                     settings::arg_get_set("log");
+                    settings::arg_get_set("db-ver");
+                }
+                if ver {
+                    settings::arg_get_set("db-ver");
                 }
             }
         }
