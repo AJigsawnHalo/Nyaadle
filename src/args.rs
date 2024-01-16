@@ -196,15 +196,18 @@ enum Subcommands {
     },
 }
 
-pub fn args_parser() {
+pub async fn args_parser() {
     // Arguments parser
     let args = Cli::parse();
 
-    fn arg_check(args: Cli) {
+    async fn arg_check(args: Cli) {
         if args.check {
-            parse::feed_check(settings::get_url(), settings::get_wl());
+            let _result = match parse::feed_check(settings::get_url(), settings::get_wl()).await{
+                Ok(_) => (),
+                Err(_) => (),
+            };
         } else {
-            default_logic();
+            default_logic().await;
         }
     }
     match args.subcommand {
@@ -222,7 +225,7 @@ pub fn args_parser() {
         }
         Some(Subcommands::Download { links, file }) => {
             if let Some(urls) = links {
-                parse::arg_dl(urls);
+                let _result = parse::arg_dl(urls).await.unwrap();
             }
             if let Some(name) = file {
                 let filename = File::open(name).expect("Failed to open file.");
@@ -232,7 +235,7 @@ pub fn args_parser() {
                     .map(|l| l.expect("Failed to read line"))
                     .collect();
 
-                parse::arg_dl(links);
+                parse::arg_dl(links).await.unwrap();
             }
         }
         Some(Subcommands::Parse {
@@ -243,20 +246,20 @@ pub fn args_parser() {
             if let Some(url) = feed {
                 if item == None && vid_opt == None {
                     let wl = settings::get_wl();
-                    parse::feed_parser(url, wl);
+                    parse::feed_parser(url, wl).await.unwrap();
                 } else {
-                    item_parse(url, item, vid_opt);
+                    item_parse(url, item, vid_opt).await;
                 }
             } else {
                 let url = settings::get_url();
-                item_parse(url, item, vid_opt);
+                item_parse(url, item, vid_opt).await;
             }
 
-            fn item_parse(url: String, item_p: Option<String>, vid_opt_p: Option<String>) {
+            async fn item_parse(url: String, item_p: Option<String>, vid_opt_p: Option<String>) {
                 if let Some(title) = item_p {
                     if let Some(opt) = vid_opt_p {
                         let wl = settings::wl_builder(0, title, opt);
-                        parse::feed_parser(url, wl);
+                        parse::feed_parser(url, wl).await.unwrap();
                     } else {
                         println!("An option is required. (Ex. '1080', 'non-vid')")
                     }
@@ -392,13 +395,13 @@ pub fn args_parser() {
                 }
             }
         }
-        None => arg_check(args),
+        None => {arg_check(args).await},
     }
 }
 
-fn default_logic() {
+async fn default_logic() {
     debug!("Nyaadle started normally.");
     let url = settings::get_url();
     let wl = settings::get_wl();
-    parse::feed_parser(url, wl);
+    parse::feed_parser(url, wl).await.unwrap();
 }

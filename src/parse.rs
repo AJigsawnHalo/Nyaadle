@@ -5,9 +5,9 @@ use crate::settings;
 use crate::settings::Watchlist;
 use rss::Channel;
 use std::fs::File;
-use std::future::IntoFuture;
 use std::io::copy;
 use std::path::Path;
+use std::io::Cursor;
 
 error_chain! {
     foreign_links {
@@ -39,6 +39,7 @@ async fn archive_check(target: &str, archive_dir: &str) -> Result<u8> {
 /// Returns either an `Ok` or an `Err`.
 async fn downloader(target: &str, title: &str) -> Result<u8> {
     // Get the download dir from the Settings.toml file
+    debug!("Reached Downloader");
     let dl_dir = settings::get_settings(&String::from("dl-dir")).unwrap();
     let archive_dir = settings::get_settings(&String::from("ar-dir")).unwrap();
 
@@ -54,7 +55,7 @@ async fn downloader(target: &str, title: &str) -> Result<u8> {
     match check.await{
         Ok(1) => {
             
-        let mut response = reqwest::get(target).await?;
+        let response = reqwest::get(target).await?;
         let mut dest = {
             let fname = response
                 .url()
@@ -68,11 +69,11 @@ async fn downloader(target: &str, title: &str) -> Result<u8> {
             println!("will be located under: '{:?}'", fname);
             File::create(fname)?
         };
-        let content = response.text().await?;
-        copy(&mut content.as_bytes(), &mut dest)?;
+        let mut content = Cursor::new(response.bytes().await?);
+        copy(&mut content, &mut dest)?;
 
         // The archive function
-        let mut response = reqwest::get(target).await?;
+        let response = reqwest::get(target).await?;
         let mut archive = {
             let fname = response
                 .url()
@@ -84,8 +85,8 @@ async fn downloader(target: &str, title: &str) -> Result<u8> {
             let fname = format!("{}/{}", archive_dir, fname);
             File::create(fname)?
         };
-        let content = response.text().await?;
-        copy(&mut content.as_bytes(), &mut archive)?;
+        let mut content = Cursor::new(response.bytes().await?);
+        copy(&mut content, &mut archive)?;
         info!("Downloaded {}", title);
 
         Ok(1)
@@ -93,45 +94,6 @@ async fn downloader(target: &str, title: &str) -> Result<u8> {
         Ok(_) => { println!("File Found. Skipping Download."); Ok(0)},
         Err(_) => Ok(0),
     }
-    //if check == "Found" {
-    //    println!("File Found. Skipping Download");
-    //    Ok(0)
-    //} else {
-    //    // Normal download location
-    //    let mut response = reqwest::get(target)?;
-    //    let mut dest = {
-    //        let fname = response
-    //            .url()
-    //            .path_segments()
-    //            .and_then(|segments| segments.last())
-    //            .and_then(|name| if name.is_empty() { None } else { Some(name) })
-    //            .unwrap_or("tmp.bin");
-
-    //        println!("file to download: '{}'", fname);
-    //        let fname = format!("{}/{}", dl_dir, fname);
-    //        println!("will be located under: '{:?}'", fname);
-    //        File::create(fname)?
-    //    };
-    //    copy(&mut response, &mut dest)?;
-
-    //    // The archive function
-    //    let mut response = reqwest::get(target)?;
-    //    let mut archive = {
-    //        let fname = response
-    //            .url()
-    //            .path_segments()
-    //            .and_then(|segments| segments.last())
-    //            .and_then(|name| if name.is_empty() { None } else { Some(name) })
-    //            .unwrap_or("tmp.bin");
-
-    //        let fname = format!("{}/{}", archive_dir, fname);
-    //        File::create(fname)?
-    //    };
-    //    copy(&mut response, &mut archive)?;
-    //    info!("Downloaded {}", title);
-
-    //    Ok(1)
-    //}
 }
 
 pub async fn arg_dl(links: Vec<String>) -> Result<()> {
@@ -156,7 +118,7 @@ pub async fn arg_dl(links: Vec<String>) -> Result<()> {
                     };
                     info!("Downloaded magnet link.");
                 } else {
-                    let mut result = match downloader(&link, &link.to_string()).await? {
+                    let result = match downloader(&link, &link.to_string()).await? {
                         1 => 1,
                         _ => 0,
                     };
@@ -239,7 +201,7 @@ pub async fn feed_parser(url: String, watch_list: Vec<Watchlist>) -> Result<()> 
     }).into_items();
 
     // Execute the main logic
-    nyaadle_logic(items, watch_list, false);
+    nyaadle_logic(items, watch_list, false).await.unwrap();
     Ok(())
 }
     
@@ -258,7 +220,7 @@ pub async fn feed_check(url: String, watch_list: Vec<Watchlist>) -> Result<()>{
     }).into_items();
 
     // Execute the main logic
-    nyaadle_logic(items, watch_list, true);
+    nyaadle_logic(items, watch_list, true).await.unwrap();
     Ok(())
 }
 /// Main logic for the function.

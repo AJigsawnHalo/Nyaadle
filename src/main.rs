@@ -14,7 +14,8 @@ extern crate error_chain;
 extern crate log;
 
 /// The main function of the program.
-fn main() {
+#[tokio::main]
+async fn main() {
     // Setup the logging macro and functions
     settings::set_check();
     let log_path = settings::get_log();
@@ -30,9 +31,9 @@ fn main() {
         .set_time_to_local(true)
         .build();
 
-    WriteLogger::init(LevelFilter::Info, conf, log_file).unwrap();
+    WriteLogger::init(LevelFilter::Debug, conf, log_file).unwrap();
 
     // TEMPORARY FUNCTION
     settings::get_db_ver().expect("Failed to set database version.");
-    args::args_parser();
+    args::args_parser().await;
 }
