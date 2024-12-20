@@ -1,4 +1,4 @@
-use rusqlite::{named_params, params, Connection, NO_PARAMS};
+use rusqlite::{named_params, params, Connection};
 use std::fs::File;
 use std::path::Path;
 
@@ -92,7 +92,7 @@ pub fn read_watch_list(set_path: &str) -> rusqlite::Result<Vec<Watchlist>> {
     // Prepare the query for the watchlist
     let mut stmt = conn.prepare("SELECT * FROM watchlist")?;
     // Execute the query. Returns the values into a Watchlist Struct
-    let stored_watch_list = stmt.query_map(NO_PARAMS, |row| {
+    let stored_watch_list = stmt.query_map([], |row| {
         Ok(Watchlist::new().build(row.get(0)?, row.get(1)?, row.get(2)?))
     })?;
     // Push the returned values into a Vector
@@ -164,7 +164,7 @@ fn db_create(set_path: &str) -> rusqlite::Result<()> {
             option text primary key,
             path text not null unique)
             ",
-        NO_PARAMS,
+            [],
     )?;
 
     // Create the watchlist table
@@ -174,7 +174,7 @@ fn db_create(set_path: &str) -> rusqlite::Result<()> {
             name text not null unique,
             option text not null)
             ",
-        NO_PARAMS,
+            [],
     )?;
     // Create the item_tracker table
     conn.execute(
@@ -183,7 +183,7 @@ fn db_create(set_path: &str) -> rusqlite::Result<()> {
             item blob not null unique,
             latest blob not null unique)
             ",
-        NO_PARAMS,
+            [],
     )?;
 
     Ok(())
@@ -304,7 +304,7 @@ pub fn get_settings(key: &str) -> rusqlite::Result<String> {
     // Prepare the query
     let mut stmt = conn.prepare("SELECT path FROM directories WHERE option = :name")?;
     // execute the query
-    let rows = stmt.query_map_named(named_params! { ":name": &key }, |row| row.get(0))?;
+    let rows = stmt.query_map(named_params! { ":name": &key }, |row| row.get(0))?;
 
     // push the returned value into a String
     let mut dir = String::new();
@@ -398,7 +398,7 @@ pub fn update_wl(set_path: &str, wl_new_key: &str, wl_opt: &str, id: &str) -> ru
     let conn = Connection::open(&set_path)?;
 
     let mut stmt = conn.prepare("select * from watchlist where id = :id")?;
-    let rows = stmt.query_map_named(&[(":id", &id)], |row| {
+    let rows = stmt.query_map(&[(":id", &id)], |row| {
         Ok(Watchlist::new().build(row.get(0)?, row.get(1)?, row.get(2)?))
     })?;
     let mut row_vec = Vec::new();
@@ -447,7 +447,7 @@ pub fn get_tracking(key: &str) -> rusqlite::Result<String> {
     // Prepare the query
     let mut stmt = conn.prepare("SELECT latest FROM item_tracker WHERE item = :name")?;
     // execute the query
-    let rows = stmt.query_map_named(named_params! { ":name": &key }, |row| row.get(0))?;
+    let rows = stmt.query_map(named_params! { ":name": &key }, |row| row.get(0))?;
 
     // push the returned value into a String
     let mut trck = String::new();

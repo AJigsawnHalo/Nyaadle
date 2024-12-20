@@ -12,14 +12,15 @@ use std::fs::OpenOptions;
 extern crate error_chain;
 #[macro_use]
 extern crate log;
-
-/// The main function of the program.
+extern crate time;
+// The main function of the program.
 #[tokio::main]
 async fn main() {
     // Setup the logging macro and functions
     settings::set_check();
     let log_path = settings::get_log();
-    let time_format = String::from("%y-%b-%d %a %H:%M:%S");
+    //let time_format = String::from("%y-%b-%d %a %H:%M:%S");
+    let time_format = format_description!("[year]-[month repr:short]-[day] [weekday repr:short] [hour]:[minute]:[second]");
     let log_file = OpenOptions::new()
         .write(true)
         .append(true)
@@ -27,8 +28,8 @@ async fn main() {
         .open(log_path)
         .unwrap();
     let conf = ConfigBuilder::new()
-        .set_time_format(time_format)
-        .set_time_to_local(true)
+        .set_time_format_custom(time_format)
+        .set_time_offset_to_local().unwrap()
         .build();
 
     WriteLogger::init(LevelFilter::Debug, conf, log_file).unwrap();

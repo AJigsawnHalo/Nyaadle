@@ -52,7 +52,7 @@ enum Subcommands {
         #[clap(
             short,
             long,
-            multiple_values = true,
+            num_args = 1..,
             help = "Used for parsing URLs to download from the command-line.",
             value_name = "URLs"
         )]
@@ -93,7 +93,7 @@ enum Subcommands {
         #[clap(
             short = 'o',
             long = "option", 
-            possible_values = [ "1080", "720", "non-vid" ],
+            value_parser = clap::builder::PossibleValuesParser::new([ "1080", "720", "non-vid" ]),
             help = "Used with `--item`. This sets the option value for the item."
         )]
         vid_opt: Option<String>,
@@ -170,7 +170,7 @@ enum Subcommands {
             short,
             long,
             help = "Item ID to edit or delete.",
-            multiple_values = true,
+            num_args = 1..,
             value_name = "ID"
         )]
         item: Option<Vec<String>>,
@@ -187,7 +187,7 @@ enum Subcommands {
             short,
             long,
             help = "Item Option.",
-            possible_values = [ "1080", "720", "non-vid" ],
+            value_parser = clap::builder::PossibleValuesParser::new([ "1080", "720", "non-vid" ]),
         )]
         option: Option<String>,
 
