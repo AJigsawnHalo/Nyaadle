@@ -23,6 +23,13 @@ struct Cli {
     )]
     check: bool,
 
+    #[clap(
+        short,
+        long,
+        help = "Force downloading of file even if it has been downloaded already."
+    )]
+    force: bool,
+
     #[clap(subcommand)]
     subcommand: Option<Subcommands>,
 }
@@ -200,6 +207,10 @@ pub async fn args_parser() {
     // Arguments parser
     let args = Cli::parse();
 
+    if args.force {
+        println!("Forcing downloads.");
+    }
+
     async fn arg_check(args: Cli) {
         if args.check {
             let _result = match parse::feed_check(settings::get_url(), settings::get_wl()).await{
@@ -207,7 +218,7 @@ pub async fn args_parser() {
                 Err(_) => (),
             };
         } else {
-            default_logic().await;
+            default_logic(args.force).await;
         }
     }
     match args.subcommand {
@@ -244,22 +255,24 @@ pub async fn args_parser() {
             vid_opt,
         }) => {
             if let Some(url) = feed {
+                println!("Parsing feed: '{}'", &url);
                 if item == None && vid_opt == None {
                     let wl = settings::get_wl();
-                    parse::feed_parser(url, wl).await.unwrap();
+                    parse::feed_parser(url, wl, args.force).await.unwrap();
                 } else {
-                    item_parse(url, item, vid_opt).await;
+                    println!("Parsing for: '{}' with option '{}'", &item.clone().unwrap(), &vid_opt.clone().unwrap());
+                    item_parse(url, item, vid_opt, args.force).await;
                 }
             } else {
                 let url = settings::get_url();
-                item_parse(url, item, vid_opt).await;
+                item_parse(url, item, vid_opt, args.force).await;
             }
 
-            async fn item_parse(url: String, item_p: Option<String>, vid_opt_p: Option<String>) {
+            async fn item_parse(url: String, item_p: Option<String>, vid_opt_p: Option<String>, force: bool) {
                 if let Some(title) = item_p {
                     if let Some(opt) = vid_opt_p {
                         let wl = settings::wl_builder(0, title, opt);
-                        parse::feed_parser(url, wl).await.unwrap();
+                        parse::feed_parser(url, wl, force).await.unwrap();
                     } else {
                         println!("An option is required. (Ex. '1080', 'non-vid')")
                     }
@@ -399,9 +412,10 @@ pub async fn args_parser() {
     }
 }
 
-async fn default_logic() {
+async fn default_logic(force: bool) {
     debug!("Nyaadle started normally.");
     let url = settings::get_url();
     let wl = settings::get_wl();
-    parse::feed_parser(url, wl).await.unwrap();
+    parse::feed_parser(url, wl, force).await.unwrap();
 }
+

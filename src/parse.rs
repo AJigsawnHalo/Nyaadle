@@ -18,26 +18,30 @@ error_chain! {
 
 /// Checks if the `target` has been already downloaded and archived
 /// Returns either `Found` or `Empty`
-async fn archive_check(target: &str, archive_dir: &str) -> Result<u8> {
-    let dir = archive_dir;
-    let response = reqwest::get(target).await?;
-    let fname = response
-        .url()
-        .path_segments()
-        .and_then(|segments| segments.last())
-        .and_then(|name| if name.is_empty() { None } else { Some(name) })
-        .unwrap_or("tmp.bin");
-    let fname = format!("{}/{}", dir, fname);
-    let path = Path::new(&fname);
-    match path.exists() {
-        true => Ok(0),
-        false => Ok(1),
+async fn archive_check(target: &str, archive_dir: &str, force: bool) -> Result<u8> {
+    if force {
+        Ok(1) 
+    } else {
+        let dir = archive_dir;
+        let response = reqwest::get(target).await?;
+        let fname = response
+            .url()
+            .path_segments()
+            .and_then(|segments| segments.last())
+            .and_then(|name| if name.is_empty() { None } else { Some(name) })
+            .unwrap_or("tmp.bin");
+        let fname = format!("{}/{}", dir, fname);
+        let path = Path::new(&fname);
+        match path.exists() {
+            true => Ok(0),
+            false => Ok(1),
+        }
     }
 }
 
 /// Function that takes in a link and downloads it to the specified path.
 /// Returns either an `Ok` or an `Err`.
-async fn downloader(target: &str, title: &str) -> Result<u8> {
+async fn downloader(target: &str, title: &str, force: bool) -> Result<u8> {
     // Get the download dir from the Settings.toml file
     debug!("Reached Downloader");
     let dl_dir = settings::get_settings(&String::from("dl-dir")).unwrap();
@@ -46,12 +50,12 @@ async fn downloader(target: &str, title: &str) -> Result<u8> {
     // Check if the download/archive location exists
     if !Path::new(&dl_dir).exists() {
         std::fs::create_dir_all(Path::new(&dl_dir)).expect("Failed to create directory");
-    }
+    } 
     if !Path::new(&archive_dir).exists() {
         std::fs::create_dir_all(Path::new(&archive_dir)).expect("Failed to create directory");
     }
 
-    let check = archive_check(&target, &archive_dir);
+    let check = archive_check(&target, &archive_dir, force);
     match check.await{
         Ok(1) => {
             
@@ -73,6 +77,7 @@ async fn downloader(target: &str, title: &str) -> Result<u8> {
         copy(&mut content, &mut dest)?;
 
         // The archive function
+        // FIXME: Change this to copy the downloaded file instead of downloading it again.
         let response = reqwest::get(target).await?;
         let mut archive = {
             let fname = response
@@ -107,7 +112,7 @@ pub async fn arg_dl(links: Vec<String>) -> Result<()> {
         } else if link == "\n" {
             break;
         } else {
-            if !tracking_check(link.to_string(), &link.to_string()) {
+            if !tracking_check(link.to_string(), &link.to_string(), true) {
                 if link.contains("magnet:") {
                     match opener::open(&link) {
                         Ok(_) => {
@@ -118,7 +123,7 @@ pub async fn arg_dl(links: Vec<String>) -> Result<()> {
                     };
                     info!("Downloaded magnet link.");
                 } else {
-                    let result = match downloader(&link, &link.to_string()).await? {
+                    let result = match downloader(&link, &link.to_string(), true).await? {
                         1 => 1,
                         _ => 0,
                     };
@@ -138,10 +143,10 @@ pub async fn arg_dl(links: Vec<String>) -> Result<()> {
 
 /// Initializes the download function then passes on the target link
 /// to the downloader function
-async fn download_logic(item: &rss::Item, wl_title: &str) -> Result<u8> {
+async fn download_logic(item: &rss::Item, wl_title: &str, force: bool) -> Result<u8> {
     let e: u8 = 0;
     let title = item.title().expect("Failed to extract title");
-    if tracking_check((&title).to_string(), &wl_title) {
+    if tracking_check((&title).to_string(), &wl_title, force) {
         Ok(e)
     } else {
         // Get the link of the item
@@ -151,7 +156,6 @@ async fn download_logic(item: &rss::Item, wl_title: &str) -> Result<u8> {
             Some(link) => link,
             _ => return Ok(0),
         };
-        //FIXME: There's currently no way of checking if the item has already been downloaded.
         if target.contains("magnet:") {
             info!("Downloaded {}", &title);
             match opener::open(&target) {
@@ -160,7 +164,7 @@ async fn download_logic(item: &rss::Item, wl_title: &str) -> Result<u8> {
             }
         } else {
             // Download the given link
-            let result = match downloader(target, &title.to_string()).await?{
+            let result = match downloader(target, &title.to_string(), force).await?{
                 1 => 1,
                 _ => 0,
             };
@@ -168,11 +172,11 @@ async fn download_logic(item: &rss::Item, wl_title: &str) -> Result<u8> {
         }
     }
 }
-fn tracking_check(item: String, wl_title: &str) -> bool {
+fn tracking_check(item: String, wl_title: &str, force: bool) -> bool {
     let set_path = settings::settings_dir();
     let trck = settings::get_tracking(&wl_title).expect("Failed to get tracking.");
 
-    if trck == item {
+    if trck == item && force == false {
         println!("Item already downloaded. Skipping...");
         true
     } else {
@@ -187,7 +191,7 @@ fn tracking_check(item: String, wl_title: &str) -> bool {
 /// file containing the watch list of anime to download.
 ///
 /// If an item title matches the watch list, it invokes the `download` function.
-pub async fn feed_parser(url: String, watch_list: Vec<Watchlist>) -> Result<()> {
+pub async fn feed_parser(url: String, watch_list: Vec<Watchlist>, force: bool) -> Result<()> {
     // Create a channel for the rss feed and return a vector of items.
     let content = reqwest::get(&url)
         .await?
@@ -201,7 +205,7 @@ pub async fn feed_parser(url: String, watch_list: Vec<Watchlist>) -> Result<()> 
     }).into_items();
 
     // Execute the main logic
-    nyaadle_logic(items, watch_list, false).await.unwrap();
+    nyaadle_logic(items, watch_list, false, force).await.unwrap();
     Ok(())
 }
     
@@ -220,7 +224,7 @@ pub async fn feed_check(url: String, watch_list: Vec<Watchlist>) -> Result<()>{
     }).into_items();
 
     // Execute the main logic
-    nyaadle_logic(items, watch_list, true).await.unwrap();
+    nyaadle_logic(items, watch_list, true, false).await.unwrap();
     Ok(())
 }
 /// Main logic for the function.
@@ -230,7 +234,7 @@ pub async fn feed_check(url: String, watch_list: Vec<Watchlist>) -> Result<()>{
 /// - A resolution number. This is used for video items.
 ///     Example: `1080p`, `720p`, `480p`
 /// - `non-vid`. This is used for other items such as Books, Software, or Audio.
-pub async fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, check: bool) -> Result<()>{
+pub async fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, check: bool, force: bool) -> Result<()>{
     let chk = check;
     let non_opt = String::from("non-vid");
     let mut num_dl: u8 = 0;
@@ -255,7 +259,7 @@ pub async fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, ch
                             println!("Found {}\n", &check);
                             continue;
                         } else {
-                            let result = match download_logic(item, &title).await? {
+                            let result = match download_logic(item, &title, force).await? {
                                 1 => 1,
                                 _ => 0,
                             };
@@ -270,7 +274,7 @@ pub async fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, ch
                             println!("Found {}\n", &check);
                             continue;
                         } else {
-                            let result = match download_logic(item, &title).await? {
+                            let result = match download_logic(item, &title, force).await? {
                                 1 => 1,
                                 _ => 0,
                             };
