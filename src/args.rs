@@ -413,7 +413,11 @@ pub async fn args_parser() {
 }
 
 async fn default_logic(force: bool) {
-    debug!("Nyaadle started normally.");
+    if force {
+        debug!("Force flag set");
+    } else {
+        debug!("Nyaadle started normally.");
+    }
     let url = settings::get_url();
     let wl = settings::get_wl();
     parse::feed_parser(url, wl, force).await.unwrap();
