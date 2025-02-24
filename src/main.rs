@@ -9,8 +9,6 @@ pub mod tui;
 use simplelog::*;
 use std::fs::OpenOptions;
 #[macro_use]
-extern crate error_chain;
-#[macro_use]
 extern crate log;
 extern crate time;
 // The main function of the program.

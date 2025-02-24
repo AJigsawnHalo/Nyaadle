@@ -10,7 +10,6 @@ description = "A small rss parser and downloader for a certain cat-themed websit
 [dependencies]
 rss = "~2.0.11"
 reqwest = "0.12.9"
-error-chain = "0.12.4"
 dirs = "5.0.1"
 rusqlite = { version = "0.32.1", features = ["bundled"] }
 clap = { version = "~4.5.23", features = [ "derive" ] }
@@ -21,6 +20,8 @@ opener = "0.7.2"
 tokio = { version = "1.42.0", features = ["full"]}
 tokio-macros = { version = "2.4.0"}
 time = "0.3.37"
+anyhow = "1.0"
+
 [dependencies.cursive]
 version = "0.21"
 default-features = false

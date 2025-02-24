@@ -8,13 +8,7 @@ use std::fs::File;
 use std::io::copy;
 use std::path::Path;
 use std::io::Cursor;
-
-error_chain! {
-    foreign_links {
-        Io(std::io::Error);
-        HttpRequest(reqwest::Error);
-    }
-}
+use anyhow::Result;
 
 /// Checks if the `target` has been already downloaded and archived
 /// Returns either `Found` or `Empty`
