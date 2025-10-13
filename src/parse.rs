@@ -54,6 +54,8 @@ async fn downloader(target: &str, title: &str, force: bool) -> Result<u8> {
         Ok(1) => {
             
         let response = reqwest::get(target).await?;
+        let archive_name;
+        let dest_name;
         let mut dest = {
             let fname = response
                 .url()
@@ -63,29 +65,19 @@ async fn downloader(target: &str, title: &str, force: bool) -> Result<u8> {
                 .unwrap_or("tmp.bin");
 
             println!("file to download: '{}'", fname);
-            let fname = format!("{}/{}", dl_dir, fname);
-            println!("will be located under: '{:?}'", fname);
-            File::create(fname)?
+            dest_name = format!("{}/{}", dl_dir, &fname); // Set up download path
+            println!("will be located under: '{:?}'", dest_name);
+            archive_name = format!("{}/{}", archive_dir, fname); // Set up archive path
+            File::create(&dest_name)?
         };
-        let mut content = Cursor::new(response.bytes().await?);
-        copy(&mut content, &mut dest)?;
+        let mut content = Cursor::new(response.bytes().await?); // Get the contents of the file
+        copy(&mut content, &mut dest)?;     // Copy contents into the downloaded file
 
-        // The archive function
-        // FIXME: Change this to copy the downloaded file instead of downloading it again.
-        let response = reqwest::get(target).await?;
-        let mut archive = {
-            let fname = response
-                .url()
-                .path_segments()
-                .and_then(|segments| segments.last())
-                .and_then(|name| if name.is_empty() { None } else { Some(name) })
-                .unwrap_or("tmp.bin");
+        // The Archive Function
+        let mut dest2 = File::open(dest_name)?; // Open the downloaded file
+        let mut archive = File::create(archive_name)?; // Create the archive file
+        copy(&mut dest2,&mut  archive)?;  // Copy downloaded file contents into the archive file
 
-            let fname = format!("{}/{}", archive_dir, fname);
-            File::create(fname)?
-        };
-        let mut content = Cursor::new(response.bytes().await?);
-        copy(&mut content, &mut archive)?;
         info!("Downloaded {}", title);
 
         Ok(1)
@@ -199,7 +191,7 @@ pub async fn feed_parser(url: String, watch_list: Vec<Watchlist>, force: bool) -
     }).into_items();
 
     // Execute the main logic
-    nyaadle_logic(items, watch_list, false, force).await.unwrap();
+    nyaadle_logic(items, watch_list, false, force).await.expect("Failed nyaadle logic");
     Ok(())
 }
     
@@ -218,7 +210,7 @@ pub async fn feed_check(url: String, watch_list: Vec<Watchlist>) -> Result<()>{
     }).into_items();
 
     // Execute the main logic
-    nyaadle_logic(items, watch_list, true, false).await.unwrap();
+    nyaadle_logic(items, watch_list, true, false).await.expect("Failed nyaadle logic");
     Ok(())
 }
 /// Main logic for the function.
