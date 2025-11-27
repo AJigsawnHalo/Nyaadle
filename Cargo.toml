@@ -9,7 +9,7 @@ description = "A small rss parser and downloader for a certain cat-themed websit
 
 [dependencies]
 rss = "~2.0.11"
-reqwest = "0.12.9"
+reqwest = { version = "0.12.9", default-features = false, features = ["rustls-tls"] }
 dirs = "5.0.1"
 rusqlite = { version = "0.32.1", features = ["bundled"] }
 clap = { version = "~4.5.23", features = [ "derive" ] }
