@@ -504,6 +504,8 @@ pub fn arg_get_set(key: &str) {
         "url" => println!("RSS Feed URL: {}", value),
         "log" => println!("Log File Path: {}", value),
         "db-ver" => println!("Database version: {}", value),
+        #[cfg(feature = "discord")]
+        "webhk_url" => println!("Discord Webhook URL: {}", &value),
         _ => unreachable!("Setting not found."),
     }
 }
