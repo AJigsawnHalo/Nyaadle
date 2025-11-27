@@ -21,6 +21,7 @@ use serenity::model::webhook::Webhook;
 /// Returns either `Found` or `Empty`
 async fn archive_check(target: &str, archive_dir: &str, force: bool) -> Result<u8> {
     if force {
+        warn!("Force option enabled.");
         Ok(1) 
     } else {
         let dir = archive_dir;
