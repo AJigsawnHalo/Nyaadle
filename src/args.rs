@@ -108,6 +108,9 @@ enum Subcommands {
 
     #[clap(visible_alias = "set", about = "Subcommand to configure settings.")]
     Settings {
+        #[clap(short, long, help = "Displays the current Settings.")]
+        print: bool,
+
         #[clap(
             short,
             long = "set-dl-dir",
@@ -115,6 +118,9 @@ enum Subcommands {
             help = "Sets the value of the Download directory."
         )]
         dl_dir: Option<String>,
+
+        #[clap(long = "get-dl-dir", help = "Returns the Download Directory.")]
+        get_dl: bool,
 
         #[clap(
             short,
@@ -124,6 +130,9 @@ enum Subcommands {
         )]
         ar_dir: Option<String>,
 
+        #[clap(long = "get-ar-dir", help = "Returns the Archive Directory.")]
+        get_ar: bool,
+
         #[clap(
             short,
             long = "set-feed-url",
@@ -131,6 +140,9 @@ enum Subcommands {
             help = "Sets the value of the RSS Feed URL."
         )]
         url: Option<String>,
+
+        #[clap(long = "get-feed-url", help = "Returns the RSS Feed URL.")]
+        get_url: bool,
 
         #[clap(
             short,
@@ -140,23 +152,22 @@ enum Subcommands {
         )]
         log: Option<String>,
 
-        #[clap(long = "get-dl-dir", help = "Returns the Download Directory.")]
-        get_dl: bool,
-
-        #[clap(long = "get-ar-dir", help = "Returns the Archive Directory.")]
-        get_ar: bool,
-
-        #[clap(long = "get-feed-url", help = "Returns the RSS Feed URL.")]
-        get_url: bool,
-
         #[clap(long = "get-log-path", help = "Returns the log file location.")]
         get_log: bool,
 
-        #[clap(short, long, help = "Displays the current Settings.")]
-        print: bool,
+        #[clap(
+            short,
+            long = "set-discord-webhook",
+            value_name = "URL",
+            help = "Set the Discord Webhook URL. Requires the \"discord\" feature to be enabled.")]
+        webhk_url: Option<String>,
+
+        #[clap(long = "get-webhook_url", help = "Returns the Discord webhook url. Requires the \"discord\" feature to be enabled.")]
+        get_wbhk: bool,
 
         #[clap(long = "get-db-ver", help = "Returns the Database version.")]
         get_ver: bool,
+
     },
 
     #[clap(
@@ -290,8 +301,10 @@ pub async fn args_parser() {
             get_ar,
             get_url,
             get_log,
+            get_wbhk,
             print,
             get_ver,
+            webhk_url,
         }) => {
             if let Some(dl) = dl_dir {
                 settings::arg_set("dl-dir", &dl);
@@ -301,13 +314,15 @@ pub async fn args_parser() {
                 settings::arg_set("url", &url)
             } else if let Some(log) = log {
                 settings::arg_set("log", &log);
-            } else if get_dl || get_ar || get_url || get_log || print || get_ver {
-                get_set(get_dl, get_ar, get_url, get_log, print, get_ver);
+            } else if let Some(webhk_url) = &webhk_url {
+                settings::arg_set("webhk_url", &webhk_url);
+            } else if get_dl || get_ar || get_url || get_log || print || get_ver || get_wbhk {
+                get_set(get_dl, get_ar, get_url, get_log, print, get_ver, get_wbhk);
             } else {
                 tui::arg_tui("set");
             }
 
-            fn get_set(dl: bool, ar: bool, url: bool, log: bool, print: bool, ver: bool) {
+            fn get_set(dl: bool, ar: bool, url: bool, log: bool, print: bool, ver: bool, wbhk: bool) {
                 if dl {
                     settings::arg_get_set("dl-dir");
                 }
@@ -325,10 +340,14 @@ pub async fn args_parser() {
                     settings::arg_get_set("ar-dir");
                     settings::arg_get_set("url");
                     settings::arg_get_set("log");
+                    settings::arg_get_set("webhk_url");
                     settings::arg_get_set("db-ver");
                 }
                 if ver {
                     settings::arg_get_set("db-ver");
+                }
+                if wbhk {
+                    settings::arg_get_set("webhk_url");
                 }
             }
         }

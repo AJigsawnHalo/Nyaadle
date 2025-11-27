@@ -11,6 +11,10 @@ use std::fs::OpenOptions;
 #[macro_use]
 extern crate log;
 extern crate time;
+
+#[cfg(feature = "discord")]
+extern crate serenity;
+
 // The main function of the program.
 #[tokio::main]
 async fn main() {

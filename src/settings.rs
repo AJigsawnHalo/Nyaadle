@@ -2,6 +2,7 @@ use rusqlite::{named_params, params, Connection};
 use std::fs::File;
 use std::path::Path;
 
+
 /// Settings Struct
 struct Settings {
     dl_key: String,
@@ -14,6 +15,8 @@ struct Settings {
     log_val: String,
     ver_key: String,
     ver_val: String,
+    whkurl_key: String,
+    whkurl_val: String,
 }
 /// Public Watchlist Struct
 #[derive(Clone, Debug)]
@@ -55,6 +58,9 @@ impl Settings {
             log_val: log_path,
             ver_key: String::from("db-ver"),
             ver_val: String::from("2.0"),
+
+            whkurl_key: String::from("webhk_url"),
+            whkurl_val: String::from(""),
         }
     }
 }
@@ -128,6 +134,7 @@ pub fn write_settings() {
         let db_dl_write = db_write_dir(&set_file, &default_set.dl_key, &default_set.dl_val);
         let db_url_write = db_write_dir(&set_file, &default_set.url_key, &default_set.url_val);
         let db_log_write = db_write_dir(&set_file, &default_set.log_key, &default_set.log_val);
+        let db_whk_write = db_write_dir(&set_file, &default_set.whkurl_key, &default_set.whkurl_val);
         let db_log_file = File::create(&default_set.log_val);
         match db_log_file {
             Ok(_) => println!("Created log file."),
@@ -136,20 +143,39 @@ pub fn write_settings() {
 
         // Append watch-list to nyaadle.db
         let db_wl_write = db_write_wl(&set_file, &default_wl.title, &default_wl.option);
-        if db_conn == Ok(())
-            && db_ar_write == Ok(())
-            && db_dl_write == Ok(())
-            && db_wl_write == Ok(())
-            && db_url_write == Ok(())
-            && db_log_write == Ok(())
-        {
-            println!("nyaadle.db created.");
-            println!(
-                "You can change settings by editing the config file in {}",
-                &set_file
-            );
+        if !cfg!(feature = "discord") {
+            if db_conn == Ok(())
+                && db_ar_write == Ok(())
+                && db_dl_write == Ok(())
+                && db_wl_write == Ok(())
+                && db_url_write == Ok(())
+                && db_log_write == Ok(())
+                && db_whk_write == Ok(())
+            {
+                println!("nyaadle.db created.");
+                println!(
+                    "You can change settings by editing the config file in {}",
+                    &set_file
+                );
+            } else {
+                println!("Failed to create nyaadle.db");
+            }
         } else {
+            if db_conn == Ok(())
+                && db_ar_write == Ok(())
+                && db_dl_write == Ok(())
+                && db_wl_write == Ok(())
+                && db_url_write == Ok(())
+                && db_log_write == Ok(())
+            {
+                println!("nyaadle.db created.");
+                println!(
+                    "You can change settings by editing the config file in {}",
+                    &set_file
+                );
+            } else {
             println!("Failed to create nyaadle.db");
+            }
         }
     }
 }
@@ -465,6 +491,8 @@ pub fn arg_set(key: &str, value: &str) {
         "ar-dir" => println!("Updated Archive directory to \"{}\"", &value),
         "url" => println!("Updated RSS Feed URL to \"{}\"", &value),
         "log" => println!("Updated log file location to \"{}\"", &value),
+        #[cfg(feature = "discord")]
+        "webhk_url" => println!("Updated discord webhook url to \"{}\"", &value),
         _ => println!("Unknown key value."),
     };
 }

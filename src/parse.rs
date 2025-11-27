@@ -10,6 +10,13 @@ use std::path::Path;
 use std::io::Cursor;
 use anyhow::Result;
 
+#[cfg(feature = "discord")]
+use serenity::builder::ExecuteWebhook;
+#[cfg(feature = "discord")]
+use serenity::http::Http;
+#[cfg(feature = "discord")]
+use serenity::model::webhook::Webhook;
+
 /// Checks if the `target` has been already downloaded and archived
 /// Returns either `Found` or `Empty`
 async fn archive_check(target: &str, archive_dir: &str, force: bool) -> Result<u8> {
@@ -40,6 +47,13 @@ async fn downloader(target: &str, title: &str, force: bool) -> Result<u8> {
     debug!("Reached Downloader");
     let dl_dir = settings::get_settings(&String::from("dl-dir")).unwrap();
     let archive_dir = settings::get_settings(&String::from("ar-dir")).unwrap();
+
+    #[cfg(feature = "discord")]
+    let wbhk_url = settings::get_settings(&String::from("webhk_url")).expect("No webhook url set");
+    #[cfg(feature = "discord")]
+    let http = Http::new("");
+    #[cfg(feature = "discord")]
+    let wbhk = Webhook::from_url(&http, &wbhk_url).await.expect("Failed to get webhook url.");
 
     // Check if the download/archive location exists
     if !Path::new(&dl_dir).exists() {
@@ -78,7 +92,13 @@ async fn downloader(target: &str, title: &str, force: bool) -> Result<u8> {
         let mut archive = File::create(archive_name)?; // Create the archive file
         copy(&mut dest2,&mut  archive)?;  // Copy downloaded file contents into the archive file
 
-        info!("Downloaded {}", title);
+        info!("Downloaded {}", &title);
+        #[cfg(feature = "discord")]
+        let content = format!("Downloaded {}", &title);
+        #[cfg(feature = "discord")]
+        let builder = ExecuteWebhook::new().content(content).username("Nyaadle");
+        #[cfg(feature = "discord")]
+        wbhk.execute(&http, false, builder).await.expect("Failed to execute webook.");
 
         Ok(1)
         },
