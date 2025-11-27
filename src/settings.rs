@@ -143,7 +143,7 @@ pub fn write_settings() {
 
         // Append watch-list to nyaadle.db
         let db_wl_write = db_write_wl(&set_file, &default_wl.title, &default_wl.option);
-        if !cfg!(feature = "discord") {
+        if cfg!(feature = "discord") {
             if db_conn == Ok(())
                 && db_ar_write == Ok(())
                 && db_dl_write == Ok(())
