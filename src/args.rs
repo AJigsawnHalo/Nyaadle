@@ -100,7 +100,7 @@ enum Subcommands {
         #[clap(
             short = 'o',
             long = "option", 
-            value_parser = clap::builder::PossibleValuesParser::new([ "1080", "720", "non-vid" ]),
+            //value_parser = clap::builder::PossibleValuesParser::new([ "1080", "720", "non-vid" ]),
             help = "Used with `--item`. This sets the option value for the item."
         )]
         vid_opt: Option<String>,
@@ -205,7 +205,7 @@ enum Subcommands {
             short,
             long,
             help = "Item Option.",
-            value_parser = clap::builder::PossibleValuesParser::new([ "1080", "720", "non-vid" ]),
+            //value_parser = clap::builder::PossibleValuesParser::new([ "1080", "720", "non-vid" ]),
         )]
         option: Option<String>,
 

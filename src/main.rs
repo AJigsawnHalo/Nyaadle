@@ -34,7 +34,7 @@ async fn main() {
         .set_time_offset_to_local().unwrap()
         .build();
 
-    WriteLogger::init(LevelFilter::Debug, conf, log_file).unwrap();
+    WriteLogger::init(LevelFilter::Info, conf, log_file).unwrap();
 
     // TEMPORARY FUNCTION
     settings::get_db_ver().expect("Failed to set database version.");
