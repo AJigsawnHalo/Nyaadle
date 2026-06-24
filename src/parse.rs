@@ -3,12 +3,12 @@
 
 use crate::settings;
 use crate::settings::Watchlist;
+use anyhow::Result;
 use rss::Channel;
 use std::fs::File;
 use std::io::copy;
-use std::path::Path;
 use std::io::Cursor;
-use anyhow::Result;
+use std::path::Path;
 
 #[cfg(feature = "discord")]
 use serenity::builder::ExecuteWebhook;
@@ -22,7 +22,7 @@ use serenity::model::webhook::Webhook;
 async fn archive_check(target: &str, archive_dir: &str, force: bool) -> Result<u8> {
     if force {
         warn!("Force option enabled.");
-        Ok(1) 
+        Ok(1)
     } else {
         let dir = archive_dir;
         let response = reqwest::get(target).await?;
@@ -54,56 +54,62 @@ async fn downloader(target: &str, title: &str, force: bool) -> Result<u8> {
     #[cfg(feature = "discord")]
     let http = Http::new("");
     #[cfg(feature = "discord")]
-    let wbhk = Webhook::from_url(&http, &wbhk_url).await.expect("Failed to get webhook url.");
+    let wbhk = Webhook::from_url(&http, &wbhk_url)
+        .await
+        .expect("Failed to get webhook url.");
 
     // Check if the download/archive location exists
     if !Path::new(&dl_dir).exists() {
         std::fs::create_dir_all(Path::new(&dl_dir)).expect("Failed to create directory");
-    } 
+    }
     if !Path::new(&archive_dir).exists() {
         std::fs::create_dir_all(Path::new(&archive_dir)).expect("Failed to create directory");
     }
 
     let check = archive_check(&target, &archive_dir, force);
-    match check.await{
+    match check.await {
         Ok(1) => {
-            
-        let response = reqwest::get(target).await?;
-        let archive_name;
-        let dest_name;
-        let mut dest = {
-            let fname = response
-                .url()
-                .path_segments()
-                .and_then(|segments| segments.last())
-                .and_then(|name| if name.is_empty() { None } else { Some(name) })
-                .unwrap_or("tmp.bin");
+            let response = reqwest::get(target).await?;
+            let archive_name;
+            let dest_name;
+            let mut dest = {
+                let fname = response
+                    .url()
+                    .path_segments()
+                    .and_then(|segments| segments.last())
+                    .and_then(|name| if name.is_empty() { None } else { Some(name) })
+                    .unwrap_or("tmp.bin");
 
-            println!("file to download: '{}'", fname);
-            dest_name = format!("{}/{}", dl_dir, &fname); // Set up download path
-            println!("will be located under: '{:?}'", dest_name);
-            archive_name = format!("{}/{}", archive_dir, fname); // Set up archive path
-            File::create(&dest_name)?
-        };
-        let mut content = Cursor::new(response.bytes().await?); // Get the contents of the file
-        copy(&mut content, &mut dest)?;     // Copy contents into the downloaded file
+                println!("file to download: '{}'", fname);
+                dest_name = format!("{}/{}", dl_dir, &fname); // Set up download path
+                println!("will be located under: '{:?}'", dest_name);
+                archive_name = format!("{}/{}", archive_dir, fname); // Set up archive path
+                File::create(&dest_name)?
+            };
+            let mut content = Cursor::new(response.bytes().await?); // Get the contents of the file
+            copy(&mut content, &mut dest)?; // Copy contents into the downloaded file
 
-        // The Archive Function
-        let mut dest2 = File::open(dest_name)?; // Open the downloaded file
-        let mut archive = File::create(archive_name)?; // Create the archive file
-        copy(&mut dest2,&mut  archive)?;  // Copy downloaded file contents into the archive file
+            // The Archive Function
+            let mut dest2 = File::open(dest_name)?; // Open the downloaded file
+            let mut archive = File::create(archive_name)?; // Create the archive file
+            copy(&mut dest2, &mut archive)?; // Copy downloaded file contents into the archive file
 
-        info!("Downloaded {}", &title);
-        #[cfg(feature = "discord")]
-        let content = format!("Downloaded {}", &title);
-        #[cfg(feature = "discord")]
-        let builder = ExecuteWebhook::new().content(content).username("Nyaadle");
-        #[cfg(feature = "discord")]
-        wbhk.execute(&http, false, builder).await.expect("Failed to execute webook.");
+            info!("Downloaded {}", &title);
+            #[cfg(feature = "discord")]
+            let content = format!("Downloaded {}", &title);
+            #[cfg(feature = "discord")]
+            let builder = ExecuteWebhook::new().content(content).username("Nyaadle");
+            #[cfg(feature = "discord")]
+            wbhk.execute(&http, false, builder)
+                .await
+                .expect("Failed to execute webook.");
 
-        Ok(1)
-        },
-        Ok(_) => { println!("File Found. Skipping Download."); Ok(0)},
+            Ok(1)
+        }
+        Ok(_) => {
+            println!("File Found. Skipping Download.");
+            Ok(0)
+        }
         Err(_) => Ok(0),
     }
 }
@@ -171,7 +177,7 @@ async fn download_logic(item: &rss::Item, wl_title: &str, force: bool) -> Result
             }
         } else {
             // Download the given link
-            let result = match downloader(target, &title.to_string(), force).await?{
+            let result = match downloader(target, &title.to_string(), force).await? {
                 1 => 1,
                 _ => 0,
             };
@@ -198,42 +204,35 @@ fn tracking_check(item: String, wl_title: &str, force: bool) -> bool {
 /// file containing the watch list of anime to download.
 ///
 /// If an item title matches the watch list, it invokes the `download` function.
-pub async fn feed_parser(url: String, watch_list: Vec<Watchlist>, force: bool) -> Result<()> {
+pub async fn feed_parser(
+    url: String,
+    watch_list: Vec<Watchlist>,
+    force: bool,
+    check: bool,
+) -> Result<()> {
+    // Check mode
+    if check {
+        info!("Nyaadle started in checking mode.");
+    }
     // Create a channel for the rss feed and return a vector of items.
-    let content = reqwest::get(&url)
-        .await?
-        .bytes()
-        .await?;
+    let content = reqwest::get(&url).await?.bytes().await?;
     let channel = Channel::read_from(&content[..]);
-    let items = channel.unwrap_or_else(|_e| {
-        println!("Unable to connect to website. Exiting...");
-        error!("Unable to connect to website. Exiting...");
-        std::process::exit(0);
-    }).into_items();
+    let items = channel
+        .unwrap_or_else(|_e| {
+            println!("Unable to connect to website. Exiting...");
+            error!("Unable to connect to website. Exiting...");
+            std::process::exit(0);
+        })
+        .into_items();
 
     // Execute the main logic
-    nyaadle_logic(items, watch_list, false, force).await.expect("Failed nyaadle logic");
-    Ok(())
-}
-    
-pub async fn feed_check(url: String, watch_list: Vec<Watchlist>) -> Result<()>{
-    // Create a channel for the rss feed and return a vector of items.
-    info!("Nyaadle started in checking mode.");
-    let content = reqwest::get(&url)
-        .await?
-        .bytes()
-        .await?;
-    let channel = Channel::read_from(&content[..]);
-    let items = channel.unwrap_or_else(|_e| {
-        println!("Unable to connect to website. Exiting...");
-        error!("Unable to connect to website. Nyaadle closed.");
-        std::process::exit(0)
-    }).into_items();
+    nyaadle_logic(items, watch_list, check, force)
+        .await
+        .expect("Failed nyaadle logic");
 
-    // Execute the main logic
-    nyaadle_logic(items, watch_list, true, false).await.expect("Failed nyaadle logic");
     Ok(())
 }
+
 /// Main logic for the function.
 /// The function iterates on the Vector `watch_list` and compares it to the `items` returned by the website.
 /// This function also checks for the download option that is set by the user.
@@ -241,7 +240,12 @@ pub async fn feed_check(url: String, watch_list: Vec<Watchlist>) -> Result<()>{
 /// - A resolution number. This is used for video items.
 ///     Example: `1080p`, `720p`, `480p`
 /// - `non-vid`. This is used for other items such as Books, Software, or Audio.
-pub async fn nyaadle_logic(items: Vec<rss::Item>, watch_list: Vec<Watchlist>, check: bool, force: bool) -> Result<()>{
+pub async fn nyaadle_logic(
+    items: Vec<rss::Item>,
+    watch_list: Vec<Watchlist>,
+    check: bool,
+    force: bool,
+) -> Result<()> {
     let chk = check;
     let non_opt = String::from("non-vid");
     let mut num_dl: u8 = 0;

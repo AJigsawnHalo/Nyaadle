@@ -159,15 +159,18 @@ enum Subcommands {
             short,
             long = "set-discord-webhook",
             value_name = "URL",
-            help = "Set the Discord Webhook URL. Requires the \"discord\" feature to be enabled.")]
+            help = "Set the Discord Webhook URL. Requires the \"discord\" feature to be enabled."
+        )]
         webhk_url: Option<String>,
 
-        #[clap(long = "get-webhook_url", help = "Returns the Discord webhook url. Requires the \"discord\" feature to be enabled.")]
+        #[clap(
+            long = "get-webhook_url",
+            help = "Returns the Discord webhook url. Requires the \"discord\" feature to be enabled."
+        )]
         get_wbhk: bool,
 
         #[clap(long = "get-db-ver", help = "Returns the Database version.")]
         get_ver: bool,
-
     },
 
     #[clap(
@@ -222,16 +225,6 @@ pub async fn args_parser() {
         println!("Forcing downloads.");
     }
 
-    async fn arg_check(args: Cli) {
-        if args.check {
-            let _result = match parse::feed_check(settings::get_url(), settings::get_wl()).await{
-                Ok(_) => (),
-                Err(_) => (),
-            };
-        } else {
-            default_logic(args.force).await;
-        }
-    }
     match args.subcommand {
         Some(Subcommands::Tui {
             settings,
@@ -269,9 +262,15 @@ pub async fn args_parser() {
                 println!("Parsing feed: '{}'", &url);
                 if item == None && vid_opt == None {
                     let wl = settings::get_wl();
-                    parse::feed_parser(url, wl, args.force).await.unwrap();
+                    parse::feed_parser(url, wl, args.force, false)
+                        .await
+                        .unwrap();
                 } else {
-                    println!("Parsing for: '{}' with option '{}'", &item.clone().unwrap(), &vid_opt.clone().unwrap());
+                    println!(
+                        "Parsing for: '{}' with option '{}'",
+                        &item.clone().unwrap(),
+                        &vid_opt.clone().unwrap()
+                    );
                     item_parse(url, item, vid_opt, args.force).await;
                 }
             } else {
@@ -279,11 +278,16 @@ pub async fn args_parser() {
                 item_parse(url, item, vid_opt, args.force).await;
             }
 
-            async fn item_parse(url: String, item_p: Option<String>, vid_opt_p: Option<String>, force: bool) {
+            async fn item_parse(
+                url: String,
+                item_p: Option<String>,
+                vid_opt_p: Option<String>,
+                force: bool,
+            ) {
                 if let Some(title) = item_p {
                     if let Some(opt) = vid_opt_p {
                         let wl = settings::wl_builder(0, title, opt);
-                        parse::feed_parser(url, wl, force).await.unwrap();
+                        parse::feed_parser(url, wl, force, false).await.unwrap();
                     } else {
                         println!("An option is required. (Ex. '1080', 'non-vid')")
                     }
@@ -322,7 +326,15 @@ pub async fn args_parser() {
                 tui::arg_tui("set");
             }
 
-            fn get_set(dl: bool, ar: bool, url: bool, log: bool, print: bool, ver: bool, wbhk: bool) {
+            fn get_set(
+                dl: bool,
+                ar: bool,
+                url: bool,
+                log: bool,
+                print: bool,
+                ver: bool,
+                wbhk: bool,
+            ) {
                 if dl {
                     settings::arg_get_set("dl-dir");
                 }
@@ -427,7 +439,15 @@ pub async fn args_parser() {
                 }
             }
         }
-        None => {arg_check(args).await},
+        None => {
+            if args.check {
+                parse::feed_parser(settings::get_url(), settings::get_wl(), false, true)
+                    .await
+                    .unwrap();
+            } else {
+                default_logic(args.force).await;
+            }
+        }
     }
 }
 
@@ -439,6 +459,5 @@ async fn default_logic(force: bool) {
     }
     let url = settings::get_url();
     let wl = settings::get_wl();
-    parse::feed_parser(url, wl, force).await.unwrap();
+    parse::feed_parser(url, wl, force, false).await.unwrap();
 }
-

@@ -22,7 +22,9 @@ async fn main() {
     settings::set_check();
     let log_path = settings::get_log();
     //let time_format = String::from("%y-%b-%d %a %H:%M:%S");
-    let time_format = format_description!("[year]-[month repr:short]-[day] [weekday repr:short] [hour]:[minute]:[second]");
+    let time_format = format_description!(
+        "[year]-[month repr:short]-[day] [weekday repr:short] [hour]:[minute]:[second]"
+    );
     let log_file = OpenOptions::new()
         .write(true)
         .append(true)
@@ -31,7 +33,8 @@ async fn main() {
         .unwrap();
     let conf = ConfigBuilder::new()
         .set_time_format_custom(time_format)
-        .set_time_offset_to_local().unwrap()
+        .set_time_offset_to_local()
+        .unwrap()
         .add_filter_ignore_str("serenity")
         .build();
 
