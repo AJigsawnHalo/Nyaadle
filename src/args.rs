@@ -2,6 +2,7 @@ use crate::parse;
 use crate::settings;
 use crate::tui;
 use clap::{Parser, Subcommand};
+use rusqlite::Connection;
 use std::{
     fs::File,
     io::{prelude::*, BufReader},
@@ -99,8 +100,7 @@ enum Subcommands {
 
         #[clap(
             short = 'o',
-            long = "option", 
-            //value_parser = clap::builder::PossibleValuesParser::new([ "1080", "720", "non-vid" ]),
+            long = "option",
             help = "Used with `--item`. This sets the option value for the item."
         )]
         vid_opt: Option<String>,
@@ -204,12 +204,7 @@ enum Subcommands {
         )]
         value: Option<String>,
 
-        #[clap(
-            short,
-            long,
-            help = "Item Option.",
-            //value_parser = clap::builder::PossibleValuesParser::new([ "1080", "720", "non-vid" ]),
-        )]
+        #[clap(short, long, help = "Item Option.")]
         option: Option<String>,
 
         #[clap(short, long)]
@@ -217,8 +212,7 @@ enum Subcommands {
     },
 }
 
-pub async fn args_parser() {
-    // Arguments parser
+pub async fn args_parser(conn: &Connection) {
     let args = Cli::parse();
 
     if args.force {
@@ -226,6 +220,8 @@ pub async fn args_parser() {
     }
 
     match args.subcommand {
+        // TUI subcommands open their own connections internally via open_conn()
+        // because cursive callbacks require 'static and cannot hold a borrow.
         Some(Subcommands::Tui {
             settings,
             watchlist,
@@ -238,9 +234,10 @@ pub async fn args_parser() {
                 tui::main_tui();
             }
         }
+
         Some(Subcommands::Download { links, file }) => {
             if let Some(urls) = links {
-                let _result = parse::arg_dl(urls).await.unwrap();
+                parse::arg_dl(conn, urls).await.unwrap();
             }
             if let Some(name) = file {
                 let filename = File::open(name).expect("Failed to open file.");
@@ -249,58 +246,40 @@ pub async fn args_parser() {
                     .lines()
                     .map(|l| l.expect("Failed to read line"))
                     .collect();
-
-                parse::arg_dl(links).await.unwrap();
+                parse::arg_dl(conn, links).await.unwrap();
             }
         }
+
         Some(Subcommands::Parse {
             feed,
             item,
             vid_opt,
         }) => {
-            if let Some(url) = feed {
-                println!("Parsing feed: '{}'", &url);
-                if item == None && vid_opt == None {
-                    let wl = settings::get_wl();
-                    parse::feed_parser(url, wl, args.force, false)
+            let url = feed.unwrap_or_else(|| settings::get_url(conn));
+            match (item, vid_opt) {
+                (Some(title), Some(opt)) => {
+                    println!("Parsing for: '{}' with option '{}'", &title, &opt);
+                    let wl = settings::wl_builder(0, title, opt);
+                    parse::feed_parser(conn, url, wl, false, args.force)
                         .await
                         .unwrap();
-                } else {
-                    println!(
-                        "Parsing for: '{}' with option '{}'",
-                        &item.clone().unwrap(),
-                        &vid_opt.clone().unwrap()
-                    );
-                    item_parse(url, item, vid_opt, args.force).await;
                 }
-            } else {
-                let url = settings::get_url();
-                item_parse(url, item, vid_opt, args.force).await;
-            }
-
-            async fn item_parse(
-                url: String,
-                item_p: Option<String>,
-                vid_opt_p: Option<String>,
-                force: bool,
-            ) {
-                if let Some(title) = item_p {
-                    if let Some(opt) = vid_opt_p {
-                        let wl = settings::wl_builder(0, title, opt);
-                        parse::feed_parser(url, wl, force, false).await.unwrap();
-                    } else {
-                        println!("An option is required. (Ex. '1080', 'non-vid')")
-                    }
-                } else {
-                    println!("Please provide an item to parse.");
+                (None, None) => {
+                    let wl = settings::get_wl(conn);
+                    parse::feed_parser(conn, url, wl, false, args.force)
+                        .await
+                        .unwrap();
                 }
+                _ => println!("Both --title and --option are required together."),
             }
         }
+
         Some(Subcommands::Settings {
             dl_dir,
             ar_dir,
             url,
             log,
+            webhk_url,
             get_dl,
             get_ar,
             get_url,
@@ -308,61 +287,49 @@ pub async fn args_parser() {
             get_wbhk,
             print,
             get_ver,
-            webhk_url,
         }) => {
             if let Some(dl) = dl_dir {
-                settings::arg_set("dl-dir", &dl);
+                settings::arg_set(conn, "dl-dir", &dl);
             } else if let Some(ar) = ar_dir {
-                settings::arg_set("ar-dir", &ar);
+                settings::arg_set(conn, "ar-dir", &ar);
             } else if let Some(url) = url {
-                settings::arg_set("url", &url)
+                settings::arg_set(conn, "url", &url);
             } else if let Some(log) = log {
-                settings::arg_set("log", &log);
-            } else if let Some(webhk_url) = &webhk_url {
-                settings::arg_set("webhk_url", &webhk_url);
+                settings::arg_set(conn, "log", &log);
+            } else if let Some(webhk_url) = webhk_url {
+                settings::arg_set(conn, "webhk_url", &webhk_url);
             } else if get_dl || get_ar || get_url || get_log || print || get_ver || get_wbhk {
-                get_set(get_dl, get_ar, get_url, get_log, print, get_ver, get_wbhk);
+                if get_dl {
+                    settings::arg_get_set(conn, "dl-dir");
+                }
+                if get_ar {
+                    settings::arg_get_set(conn, "ar-dir");
+                }
+                if get_url {
+                    settings::arg_get_set(conn, "url");
+                }
+                if get_log {
+                    settings::arg_get_set(conn, "log");
+                }
+                if get_wbhk {
+                    settings::arg_get_set(conn, "webhk_url");
+                }
+                if get_ver {
+                    settings::arg_get_set(conn, "db-ver");
+                }
+                if print {
+                    settings::arg_get_set(conn, "dl-dir");
+                    settings::arg_get_set(conn, "ar-dir");
+                    settings::arg_get_set(conn, "url");
+                    settings::arg_get_set(conn, "log");
+                    settings::arg_get_set(conn, "webhk_url");
+                    settings::arg_get_set(conn, "db-ver");
+                }
             } else {
                 tui::arg_tui("set");
             }
-
-            fn get_set(
-                dl: bool,
-                ar: bool,
-                url: bool,
-                log: bool,
-                print: bool,
-                ver: bool,
-                wbhk: bool,
-            ) {
-                if dl {
-                    settings::arg_get_set("dl-dir");
-                }
-                if ar {
-                    settings::arg_get_set("ar-dir");
-                }
-                if url {
-                    settings::arg_get_set("url");
-                }
-                if log {
-                    settings::arg_get_set("log");
-                }
-                if print {
-                    settings::arg_get_set("dl-dir");
-                    settings::arg_get_set("ar-dir");
-                    settings::arg_get_set("url");
-                    settings::arg_get_set("log");
-                    settings::arg_get_set("webhk_url");
-                    settings::arg_get_set("db-ver");
-                }
-                if ver {
-                    settings::arg_get_set("db-ver");
-                }
-                if wbhk {
-                    settings::arg_get_set("webhk_url");
-                }
-            }
         }
+
         Some(Subcommands::WatchlistEditor {
             add,
             delete,
@@ -372,92 +339,79 @@ pub async fn args_parser() {
             option,
             print,
         }) => {
-            let set_path = settings::settings_dir();
             if add && (!delete || !edit || !print) {
                 let tgt = item_builder(value, option);
-                add_item(&set_path, tgt);
+                settings::db_write_wl(conn, &tgt.0, &tgt.1)
+                    .expect("Failed to write to the database.");
+                println!("Added \"{} | {}\" to the watchlist.", &tgt.0, &tgt.1);
             } else if edit && (!add || !delete || !print) {
                 let tgt = item_builder(value, option);
                 if let Some(ids) = item {
                     for id in ids {
-                        edit_item(&set_path, &tgt, id);
+                        settings::update_wl(conn, &tgt.0, &tgt.1, &id)
+                            .expect("Failed to write to the database.");
+                        println!("Updated {} to \"{} | {}\".", id, &tgt.0, &tgt.1);
                     }
                 }
             } else if delete && (!add || !edit || !print) {
-                if let Some(id) = item {
-                    del_item(&set_path, id);
+                if let Some(ids) = item {
+                    for id in ids {
+                        settings::db_delete_wl(conn, &id).expect("Failed to delete item");
+                        println!("Item deleted.");
+                    }
                 }
             } else if print && (!add || !edit || !delete) {
-                print_wl(&set_path);
+                let wl = settings::read_watch_list(conn).expect("Failed to unpack watchlist.");
+                println!("ID | Item Title | Option");
+                for item in wl {
+                    println!("{} | {} | {}", item.id, item.title, item.option);
+                }
             } else {
                 tui::arg_tui("wle");
             }
-
-            fn item_builder(val: Option<String>, opt: Option<String>) -> (String, String) {
-                if let Some(value) = val {
-                    let item_val = value;
-                    if let Some(option) = opt {
-                        let item_opt = option;
-                        (item_val, item_opt)
-                    } else {
-                        println!("Please provide both an item name and an item option.");
-                        std::process::exit(0);
-                    }
-                } else {
-                    println!("Please provide both an item name and an item option.");
-                    std::process::exit(0);
-                }
-            }
-
-            fn add_item(set_path: &str, item: (String, String)) {
-                settings::db_write_wl(&set_path, &item.0, &item.1)
-                    .expect("Failed to write to the database.");
-                println!("Added \"{} | {}\" to the watchlist.", &item.0, &item.1);
-            }
-
-            fn edit_item(set_path: &str, item: &(String, String), id: String) {
-                settings::update_wl(set_path, &item.0, &item.1, &id)
-                    .expect("Failed to write to the database.");
-                println!("Updated {} to \"{} | {}\".", id, &item.0, &item.1);
-            }
-
-            fn del_item(set_path: &str, ids: Vec<String>) {
-                for id in ids {
-                    settings::db_delete_wl(set_path, &id).expect("Failed to delete item");
-                    println!("Item deleted.");
-                }
-            }
-
-            fn print_wl(set_path: &str) {
-                let wl = settings::read_watch_list(&set_path).expect("Failed to unpack watchlist.");
-                println!("ID | Item Title | Option");
-                for item in wl {
-                    let id = item.id;
-                    let title = item.title;
-                    let opt = item.option;
-                    println!("{} | {} | {}", id, title, opt);
-                }
-            }
         }
+
         None => {
             if args.check {
-                parse::feed_parser(settings::get_url(), settings::get_wl(), false, true)
-                    .await
-                    .unwrap();
+                parse::feed_parser(
+                    conn,
+                    settings::get_url(conn),
+                    settings::get_wl(conn),
+                    true,
+                    false,
+                )
+                .await
+                .unwrap();
             } else {
-                default_logic(args.force).await;
+                default_logic(conn, args.force).await;
             }
         }
     }
 }
 
-async fn default_logic(force: bool) {
+async fn default_logic(conn: &Connection, force: bool) {
     if force {
         debug!("Force flag set");
     } else {
         debug!("Nyaadle started normally.");
     }
-    let url = settings::get_url();
-    let wl = settings::get_wl();
-    parse::feed_parser(url, wl, force, false).await.unwrap();
+    parse::feed_parser(
+        conn,
+        settings::get_url(conn),
+        settings::get_wl(conn),
+        false,
+        force,
+    )
+    .await
+    .unwrap();
+}
+
+fn item_builder(val: Option<String>, opt: Option<String>) -> (String, String) {
+    match (val, opt) {
+        (Some(v), Some(o)) => (v, o),
+        _ => {
+            println!("Please provide both an item name and an item option.");
+            std::process::exit(0);
+        }
+    }
 }

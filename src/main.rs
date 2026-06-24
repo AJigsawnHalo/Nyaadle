@@ -18,10 +18,14 @@ extern crate serenity;
 // The main function of the program.
 #[tokio::main]
 async fn main() {
-    // Setup the logging macro and functions
+    // Ensure the database exists before anything else
     settings::set_check();
-    let log_path = settings::get_log();
-    //let time_format = String::from("%y-%b-%d %a %H:%M:%S");
+
+    // Open a single shared connection for the lifetime of the program
+    let conn = settings::open_conn().expect("Failed to open database.");
+
+    // Set up logging
+    let log_path = settings::get_log(&conn);
     let time_format = format_description!(
         "[year]-[month repr:short]-[day] [weekday repr:short] [hour]:[minute]:[second]"
     );
@@ -40,7 +44,8 @@ async fn main() {
 
     WriteLogger::init(LevelFilter::Info, conf, log_file).unwrap();
 
-    // TEMPORARY FUNCTION
-    settings::get_db_ver().expect("Failed to set database version.");
-    args::args_parser().await;
+    // TODO: replace with a proper migration system when schema changes are needed.
+    settings::get_db_ver(&conn).expect("Failed to set database version.");
+
+    args::args_parser(&conn).await;
 }

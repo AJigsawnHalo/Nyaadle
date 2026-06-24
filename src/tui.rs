@@ -37,19 +37,15 @@ impl TableViewItem<WatchColumn> for Watchlist {
     }
 }
 
-/// The main tui of Nyaadle
+/// The main TUI of Nyaadle
 pub fn main_tui() {
     let mut siv = cursive::default();
-
     main_tui_layer(&mut siv);
-    // Runs the Cursive Root
     siv.run();
 }
 
-/// Matches the &str passed and points to the correct tui
+/// Matches the &str passed and points to the correct TUI
 fn on_submit_main(s: &mut Cursive, item: &str) {
-    // removes the previous layer
-    // Matches the item passed by the main_tui
     match item {
         "wle" => wle_tui(s),
         "set" => set_tui(s),
@@ -57,9 +53,8 @@ fn on_submit_main(s: &mut Cursive, item: &str) {
     };
 }
 
-/// Function for setting up the main tui
+/// Function for setting up the main TUI
 fn main_tui_layer(s: &mut Cursive) {
-    // Setup the Main TUI
     let select = SelectView::<String>::new()
         .item("Watch-list Editor", String::from("wle"))
         .item("Settings", String::from("set"))
@@ -67,10 +62,8 @@ fn main_tui_layer(s: &mut Cursive) {
         .with_name("select")
         .fixed_size((75, 10));
 
-    // Removes the previous layer
     s.pop_layer();
 
-    // Adds the Main TUI to the Cursive Root
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
@@ -84,60 +77,48 @@ fn main_tui_layer(s: &mut Cursive) {
     );
 }
 
-/// Function that sets up a Cursive TUI when started from
-/// a command-line argument
+/// Function that sets up a Cursive TUI when started from a command-line argument
 pub fn arg_tui(item: &str) {
-    // Create a blank CUrsive Root
     let mut siv = cursive::default();
-    // Add a DummyView to the blank root
     siv.add_layer(DummyView);
-    // Matches the arguments passed
     match item {
         "wle" => wle_tui(&mut siv),
         "set" => set_tui(&mut siv),
         _ => unreachable!("Item not in list"),
     };
-    // Runs the Cursive Root
     siv.run();
 }
 
 /// The Watch-list Editor TUI
 fn wle_tui(s: &mut Cursive) {
-    // Removes the previous layer
     s.pop_layer();
-    // get the settings dir
-    let set_path = settings::settings_dir();
-    // read the items from the database
-    let items = settings::read_watch_list(&set_path).expect("Failed to unpack vectors");
 
-    // Set-up the Watch-list Editor TableView
+    // TUI callbacks are 'static so they open their own connections
+    let conn = settings::open_conn().expect("Failed to open database.");
+    let items = settings::read_watch_list(&conn).expect("Failed to unpack vectors");
+
     let mut table = TableView::<Watchlist, WatchColumn>::new()
         .column(WatchColumn::Id, "ID", |c| c.width(5))
         .column(WatchColumn::Title, "Item Name", |c| c.width(55))
         .column(WatchColumn::Option, "Option", |c| c.width(10))
         .default_column(WatchColumn::Id);
 
-    // Inserts the items into the table
     table.set_items(items);
 
-    // Buttons at the left side of the TUI
-    // Comprised of the Add and Delete Buttons
     let buttons_left = LinearLayout::horizontal()
         .child(Button::new("Add", add_item))
         .child(Button::new("Edit", edit_item))
         .child(Button::new("Delete", delete_item));
-    // Buttons at the right side of the TUI
-    // Comprised of Navigation Buttons (Back and Quit)
+
     let buttons_right = LinearLayout::horizontal()
         .child(Button::new("Back", |s| main_tui_layer(s)))
         .child(DummyView)
         .child(Button::new("Quit", Cursive::quit));
 
-    // Sets up the buttons into a horizontal layer
     let button_layer = LinearLayout::horizontal()
         .child(PaddedView::lrtb(0, 47, 0, 0, buttons_left))
         .child(buttons_right);
-    // Adds the views to create the WLE
+
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
@@ -148,27 +129,22 @@ fn wle_tui(s: &mut Cursive) {
     );
 }
 
-/// Adds an item in the watch-list
+/// Adds an item to the watch-list
 fn add_item(s: &mut Cursive) {
-    // Set-up the EditViews
     let edit_title = EditView::new().with_name("title_edit").fixed_width(50);
-
     let edit_option = EditView::new().with_name("opt_edit").fixed_width(10);
-
     let title_text = TextView::new("Title:");
     let option_text = TextView::new("Option:");
 
-    // Function runs when the <Ok> button is pressed
     fn ok(s: &mut Cursive, value: String, opt: String) {
-        if !&value.is_empty() && !&opt.is_empty() {
-            let set_path = settings::settings_dir();
-            let temp_id = 0;
+        if !value.is_empty() && !opt.is_empty() {
+            let conn = settings::open_conn().expect("Failed to open database.");
             let list = Watchlist {
-                id: temp_id,
+                id: 0,
                 title: value,
                 option: opt,
             };
-            settings::db_write_wl(&set_path, &list.title, &list.option)
+            settings::db_write_wl(&conn, &list.title, &list.option)
                 .expect("Failed to write into database");
             s.call_on_name(
                 "watch-list",
@@ -176,15 +152,11 @@ fn add_item(s: &mut Cursive) {
                     wl.insert_item(list);
                 },
             );
-            s.pop_layer();
-            wle_tui(s);
-        } else {
-            s.pop_layer();
-            wle_tui(s);
         }
+        s.pop_layer();
+        wle_tui(s);
     }
 
-    // Sets up the Add Item Dialog
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
@@ -208,7 +180,8 @@ fn add_item(s: &mut Cursive) {
         }),
     )
 }
-// Edits the selected item.
+
+/// Edits the selected item in the watch-list
 fn edit_item(s: &mut Cursive) {
     let table = s
         .find_name::<TableView<Watchlist, WatchColumn>>("watch-list")
@@ -216,43 +189,30 @@ fn edit_item(s: &mut Cursive) {
     let index = table.item().unwrap();
     let item = table.borrow_item(index).expect("No Item Selected");
     let id = item.id;
-    let old_title = &item.title;
-    let old_opt = &item.option;
-    // Set-up the EditViews
+    let old_title = item.title.clone();
+    let old_opt = item.option.clone();
+
     let edit_title = EditView::new()
-        .content(&*old_title)
+        .content(&old_title)
         .with_name("title_edit")
         .fixed_width(50);
-
     let edit_option = EditView::new()
-        .content(&*old_opt)
+        .content(&old_opt)
         .with_name("opt_edit")
         .fixed_width(10);
-
     let title_text = TextView::new("Title:");
     let option_text = TextView::new("Option:");
 
-    // Function runs when the <Ok> button is pressed
-    fn ok(s: &mut Cursive, _old_val: &str, value: &str, opt: String, id: i32) {
-        if !&value.is_empty() && !&opt.is_empty() {
-            let set_path = settings::settings_dir();
-            let temp_id = 0;
-            let list = Watchlist {
-                id: temp_id,
-                title: value.to_string(),
-                option: opt,
-            };
-            settings::update_wl(&set_path, &list.title, &list.option, &id.to_string())
+    fn ok(s: &mut Cursive, value: &str, opt: String, id: i32) {
+        if !value.is_empty() && !opt.is_empty() {
+            let conn = settings::open_conn().expect("Failed to open database.");
+            settings::update_wl(&conn, value, &opt, &id.to_string())
                 .expect("Failed to write to database.");
-            s.pop_layer();
-            wle_tui(s); // This is a workaround. Find a way to just update the table.
-        } else {
-            s.pop_layer();
-            wle_tui(s);
         }
+        s.pop_layer();
+        wle_tui(s);
     }
 
-    // Sets up the Add Item Dialog
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
@@ -272,34 +232,22 @@ fn edit_item(s: &mut Cursive) {
                     view.get_content().to_string()
                 })
                 .unwrap();
-            let table = s
-                .find_name::<TableView<Watchlist, WatchColumn>>("watch-list")
-                .unwrap();
-            let index = table.item().expect("No item selected.");
-            let item = table.borrow_item(index).unwrap();
-            let old_val = &item.title;
-
-            ok(s, &old_val, &value, opt, id);
+            ok(s, &value, opt, id);
         }),
     )
 }
 
 /// Deletes the currently selected item in the watch-list
 fn delete_item(s: &mut Cursive) {
-    // Get the settings dir
-    let set_path = settings::settings_dir();
-    // retrieve the WLE table
     let mut table = s
         .find_name::<TableView<Watchlist, WatchColumn>>("watch-list")
         .unwrap();
-    // Matches the given item index
     match table.item() {
         None => s.add_layer(Dialog::info("No item to delete")),
-        // If there's a value, delete it
         Some(index) => {
             let value = table.borrow_item(index).unwrap();
-            settings::db_delete_wl(&set_path, &value.id.to_string())
-                .expect("Failed to delete item");
+            let conn = settings::open_conn().expect("Failed to open database.");
+            settings::db_delete_wl(&conn, &value.id.to_string()).expect("Failed to delete item");
             table.remove_item(index);
         }
     };
@@ -307,9 +255,8 @@ fn delete_item(s: &mut Cursive) {
 
 /// The Settings Editor TUI
 fn set_tui(s: &mut Cursive) {
-    // Remove the previous layer
     s.pop_layer();
-    // Set-up the Settings SelectView
+
     let select = SelectView::<String>::new()
         .item("Download directory", String::from("dl-dir"))
         .item("Archive directory", String::from("ar-dir"))
@@ -319,12 +266,10 @@ fn set_tui(s: &mut Cursive) {
         .with_name("set_select")
         .fixed_size((50, 10));
 
-    // Set-up the navigation buttons
     let buttons = LinearLayout::horizontal()
         .child(Button::new("Back", |s| main_tui_layer(s)))
         .child(Button::new("Quit", Cursive::quit));
 
-    // Create the Settings Editor Dialog
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
@@ -350,19 +295,15 @@ fn on_submit_set(s: &mut Cursive, item: &str) {
 
 /// Dialog box to edit the Archive Directory
 fn ar_edit(s: &mut Cursive, item: &str) {
-    // get the settings dir
-    let set_path = settings::settings_dir();
-    // get the current archive directory
-    let ar_dir = settings::get_settings(&String::from(item)).unwrap();
-    // transform the &str item to a String
+    let conn = settings::open_conn().expect("Failed to open database.");
+    let ar_dir = settings::get_settings(&conn, item).unwrap();
     let key = String::from(item);
-    // Set up the Archive Dir EditVIew
+
     let edit = EditView::new()
         .content(ar_dir)
         .with_name("ar_edit")
         .fixed_width(70);
 
-    // Create the Archive Dir Dialog
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
@@ -375,36 +316,27 @@ fn ar_edit(s: &mut Cursive, item: &str) {
                     view.get_content().to_string()
                 })
                 .expect("Failed to get value");
-            ok(s, &set_path, &key, value);
+            let conn = settings::open_conn().expect("Failed to open database.");
+            settings::update_write_dir(&conn, &key, &value).expect("Failed to write to database");
+            s.pop_layer();
         })
         .button("Cancel", |s| set_tui(s))
         .title("Edit Archive Directory")
         .fixed_size((70, 10)),
     );
-
-    // Function that runs when <Ok> is pressed
-    fn ok(s: &mut Cursive, set_path: &str, dir_key: &str, value: String) {
-        settings::update_write_dir(&set_path, &dir_key, &value)
-            .expect("Failed to write to database");
-        s.pop_layer();
-    }
 }
 
 /// Dialog box to edit the Downloads Directory
 fn dl_edit(s: &mut Cursive, item: &str) {
-    // get the settings dir
-    let set_path = settings::settings_dir();
-    // get the current download dir
-    let dl_dir = settings::get_settings(&String::from(item)).unwrap();
-    // transform the &str item to String
+    let conn = settings::open_conn().expect("Failed to open database.");
+    let dl_dir = settings::get_settings(&conn, item).unwrap();
     let key = String::from(item);
-    // Set-up the Download Dir EditView
+
     let edit = EditView::new()
         .content(dl_dir)
         .with_name("dl_edit")
         .fixed_width(70);
 
-    // Create the Download Dir Dialog
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
@@ -417,36 +349,27 @@ fn dl_edit(s: &mut Cursive, item: &str) {
                     view.get_content().to_string()
                 })
                 .expect("Failed to get value");
-            ok(s, &set_path, &key, value);
+            let conn = settings::open_conn().expect("Failed to open database.");
+            settings::update_write_dir(&conn, &key, &value).expect("Failed to write to database");
+            s.pop_layer();
         })
         .button("Cancel", |s| set_tui(s))
         .title("Edit Download Directory")
         .fixed_size((70, 10)),
     );
-
-    // Function that runs when the <Ok> button is pressed
-    fn ok(s: &mut Cursive, set_path: &str, dir_key: &str, value: String) {
-        settings::update_write_dir(&set_path, &dir_key, &value)
-            .expect("Failed to write to database");
-        s.pop_layer();
-    }
 }
 
-/// Dialog box to edit the Downloads Directory
+/// Dialog box to edit the RSS Feed URL
 fn url_edit(s: &mut Cursive, item: &str) {
-    // get the settings dir
-    let set_path = settings::settings_dir();
-    // get the current url
-    let url = settings::get_settings(&String::from(item)).unwrap();
-    // transform the &str item to String
+    let conn = settings::open_conn().expect("Failed to open database.");
+    let url = settings::get_settings(&conn, item).unwrap();
     let key = String::from(item);
-    // Set-up the URL EditView
+
     let edit = EditView::new()
         .content(url)
         .with_name("url_edit")
         .fixed_width(70);
 
-    // Create the URL Dialog
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
@@ -454,43 +377,35 @@ fn url_edit(s: &mut Cursive, item: &str) {
                 .child(edit),
         )
         .button("Ok", move |s| {
-            let value = s
+            let mut value = s
                 .call_on_name("url_edit", |view: &mut EditView| {
                     view.get_content().to_string()
                 })
                 .expect("Failed to get value");
-            ok(s, &set_path, &key, value);
+            if value.is_empty() {
+                value = String::from("https://nyaa.si/?page=rss");
+            }
+            let conn = settings::open_conn().expect("Failed to open database.");
+            settings::update_write_dir(&conn, &key, &value).expect("Failed to write to database");
+            s.pop_layer();
         })
         .button("Cancel", |s| set_tui(s))
         .title("Edit RSS Feed URL")
         .fixed_size((70, 10)),
     );
-
-    // Function that runs when the <Ok> button is pressed
-    fn ok(s: &mut Cursive, set_path: &str, dir_key: &str, value: String) {
-        let mut val = value;
-        if val.is_empty() {
-            val = String::from("https://nyaa.si/?page=rss");
-        }
-        settings::update_write_dir(&set_path, &dir_key, &val).expect("Failed to write to database");
-        s.pop_layer();
-    }
 }
-/// Dialog box to edit the Downloads Directory
+
+/// Dialog box to edit the Log File Path
 fn log_edit(s: &mut Cursive, item: &str) {
-    // get the settings dir
-    let set_path = settings::settings_dir();
-    // get the current url
-    let url = settings::get_settings(&String::from(item)).unwrap();
-    // transform the &str item to String
+    let conn = settings::open_conn().expect("Failed to open database.");
+    let log_path = settings::get_settings(&conn, item).unwrap();
     let key = String::from(item);
-    // Set-up the URL EditView
+
     let edit = EditView::new()
-        .content(url)
+        .content(log_path)
         .with_name("log_edit")
         .fixed_width(70);
 
-    // Create the URL Dialog
     s.add_layer(
         Dialog::around(
             LinearLayout::vertical()
@@ -498,29 +413,24 @@ fn log_edit(s: &mut Cursive, item: &str) {
                 .child(edit),
         )
         .button("Ok", move |s| {
-            let value = s
+            let mut value = s
                 .call_on_name("log_edit", |view: &mut EditView| {
                     view.get_content().to_string()
                 })
                 .expect("Failed to get value");
-            ok(s, &set_path, &key, value);
+            if value.is_empty() {
+                let mut default = dirs::config_dir().unwrap();
+                default.push("nyaadle");
+                default.push("nyaadle");
+                default.set_extension("log");
+                value = String::from(default.to_str().unwrap());
+            }
+            let conn = settings::open_conn().expect("Failed to open database.");
+            settings::update_write_dir(&conn, &key, &value).expect("Failed to write to database");
+            s.pop_layer();
         })
         .button("Cancel", |s| set_tui(s))
         .title("Edit Log file path")
         .fixed_size((70, 10)),
     );
-
-    // Function that runs when the <Ok> button is pressed
-    fn ok(s: &mut Cursive, set_path: &str, dir_key: &str, value: String) {
-        let mut log_path_default = dirs::config_dir().unwrap();
-        log_path_default.push("nyaadle");
-        log_path_default.push("nyaadle");
-        log_path_default.set_extension("log");
-        let mut val = value;
-        if val.is_empty() {
-            val = String::from(log_path_default.to_str().unwrap());
-        }
-        settings::update_write_dir(&set_path, &dir_key, &val).expect("Failed to write to database");
-        s.pop_layer();
-    }
 }

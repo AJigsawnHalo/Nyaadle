@@ -17,6 +17,7 @@ struct Settings {
     whkurl_key: String,
     whkurl_val: String,
 }
+
 /// Public Watchlist Struct
 #[derive(Clone, Debug)]
 pub struct Watchlist {
@@ -26,9 +27,7 @@ pub struct Watchlist {
 }
 
 impl Settings {
-    // Default Settings
     fn default() -> Settings {
-        // Gets the home directory
         let mut dl_dir = dirs::home_dir().expect("Failed to extract home directory");
         dl_dir.push("Transmission");
         dl_dir.push("torrent-ingest");
@@ -57,7 +56,6 @@ impl Settings {
             log_val: log_path,
             ver_key: String::from("db-ver"),
             ver_val: String::from("2.0"),
-
             whkurl_key: String::from("webhk_url"),
             whkurl_val: String::from(""),
         }
@@ -65,21 +63,21 @@ impl Settings {
 }
 
 impl Watchlist {
-    fn new() -> Watchlist {
+    pub fn new() -> Watchlist {
         Watchlist {
             id: 0,
             title: String::from(""),
             option: String::from(""),
         }
     }
-    fn build(mut self, id: i32, title: String, option: String) -> Watchlist {
+
+    pub fn build(mut self, id: i32, title: String, option: String) -> Watchlist {
         self.id = id;
         self.title = title;
         self.option = option;
         self
     }
 
-    // Default Watchlist
     fn default() -> Watchlist {
         Watchlist {
             id: 0,
@@ -89,27 +87,49 @@ impl Watchlist {
     }
 }
 
-/// Function that returns the values inside the watchlist table
-pub fn read_watch_list(set_path: &str) -> rusqlite::Result<Vec<Watchlist>> {
-    // Open the database
-    let conn = Connection::open(set_path)?;
-
-    // Prepare the query for the watchlist
-    let mut stmt = conn.prepare("SELECT * FROM watchlist")?;
-    // Execute the query. Returns the values into a Watchlist Struct
-    let stored_watch_list = stmt.query_map([], |row| {
-        Ok(Watchlist::new().build(row.get(0)?, row.get(1)?, row.get(2)?))
-    })?;
-    // Push the returned values into a Vector
-    let mut watch_list = Vec::new();
-    for item in stored_watch_list {
-        watch_list.push(item?)
-    }
-    // Return the watchlist
-    Ok(watch_list)
+/// Returns the path to the nyaadle database.
+pub fn settings_dir() -> String {
+    let mut set_dir = dirs::config_dir().unwrap();
+    set_dir.push("nyaadle");
+    set_dir.push("nyaadle");
+    set_dir.set_extension("db");
+    String::from(set_dir.to_str().unwrap())
 }
 
-/// Checks if the config directory exists and then creates it if it's not found.
+/// Opens a connection to the nyaadle database.
+/// Used by main to create the shared connection, and by tui.rs for
+/// its interactive callbacks which cannot hold a borrowed reference.
+pub fn open_conn() -> rusqlite::Result<Connection> {
+    Connection::open(settings_dir())
+}
+
+/// Creates the database tables if they don't already exist.
+fn db_create(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS directories (
+            option TEXT PRIMARY KEY,
+            path   TEXT NOT NULL UNIQUE)",
+        [],
+    )?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS watchlist (
+            id     INTEGER PRIMARY KEY,
+            name   TEXT NOT NULL UNIQUE,
+            option TEXT NOT NULL)",
+        [],
+    )?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS item_tracker (
+            id     INTEGER PRIMARY KEY,
+            item   BLOB NOT NULL UNIQUE,
+            latest BLOB NOT NULL UNIQUE)",
+        [],
+    )?;
+    Ok(())
+}
+
+/// Checks if the config directory and database exist; creates them if not.
+/// Opens its own connection since this runs before the shared conn exists.
 pub fn write_settings() {
     let default_set = Settings::default();
     let default_wl = Watchlist::default();
@@ -117,387 +137,228 @@ pub fn write_settings() {
 
     let mut directory = dirs::config_dir().unwrap();
     directory.push("nyaadle");
-
     let directory = String::from(directory.to_str().unwrap());
 
-    // If the settings file doesn't exist, create it.
     if !Path::new(&set_file).exists() {
         println!("nyaadle.db not found. Creating it right now.");
-        // create directory
+
         if !Path::new(&directory).exists() {
             std::fs::create_dir(&directory).expect("Unable to create directory");
         }
-        // Create nyaadle.db and add dl-dir
-        let db_conn = db_create(&set_file);
-        let db_ar_write = db_write_dir(&set_file, &default_set.ar_key, &default_set.ar_val);
-        let db_dl_write = db_write_dir(&set_file, &default_set.dl_key, &default_set.dl_val);
-        let db_url_write = db_write_dir(&set_file, &default_set.url_key, &default_set.url_val);
-        let db_log_write = db_write_dir(&set_file, &default_set.log_key, &default_set.log_val);
-        let db_whk_write =
-            db_write_dir(&set_file, &default_set.whkurl_key, &default_set.whkurl_val);
-        let db_log_file = File::create(&default_set.log_val);
-        match db_log_file {
+
+        let conn = Connection::open(&set_file).expect("Failed to create database.");
+
+        let db_conn = db_create(&conn);
+        let db_ar_write = db_write_dir(&conn, &default_set.ar_key, &default_set.ar_val);
+        let db_dl_write = db_write_dir(&conn, &default_set.dl_key, &default_set.dl_val);
+        let db_url_write = db_write_dir(&conn, &default_set.url_key, &default_set.url_val);
+        let db_log_write = db_write_dir(&conn, &default_set.log_key, &default_set.log_val);
+        let db_whk_write = db_write_dir(&conn, &default_set.whkurl_key, &default_set.whkurl_val);
+        let db_wl_write = db_write_wl(&conn, &default_wl.title, &default_wl.option);
+
+        match File::create(&default_set.log_val) {
             Ok(_) => println!("Created log file."),
-            Err(_) => println!("Failed to create log file"),
+            Err(_) => println!("Failed to create log file."),
         }
 
-        // Append watch-list to nyaadle.db
-        let db_wl_write = db_write_wl(&set_file, &default_wl.title, &default_wl.option);
-        if cfg!(feature = "discord") {
-            if db_conn == Ok(())
-                && db_ar_write == Ok(())
-                && db_dl_write == Ok(())
-                && db_wl_write == Ok(())
-                && db_url_write == Ok(())
-                && db_log_write == Ok(())
-                && db_whk_write == Ok(())
-            {
-                println!("nyaadle.db created.");
-                println!(
-                    "You can change settings by editing the config file in {}",
-                    &set_file
-                );
-            } else {
-                println!("Failed to create nyaadle.db");
-            }
+        let base_ok = db_conn == Ok(())
+            && db_ar_write == Ok(())
+            && db_dl_write == Ok(())
+            && db_wl_write == Ok(())
+            && db_url_write == Ok(())
+            && db_log_write == Ok(());
+
+        #[cfg(feature = "discord")]
+        let base_ok = base_ok && db_whk_write == Ok(());
+        #[cfg(not(feature = "discord"))]
+        let _ = db_whk_write;
+
+        if base_ok {
+            println!("nyaadle.db created.");
+            println!("You can change settings by running 'nyaadle set' or 'nyaadle tui'.");
         } else {
-            if db_conn == Ok(())
-                && db_ar_write == Ok(())
-                && db_dl_write == Ok(())
-                && db_wl_write == Ok(())
-                && db_url_write == Ok(())
-                && db_log_write == Ok(())
-            {
-                println!("nyaadle.db created.");
-                println!(
-                    "You can change settings by editing the config file in {}",
-                    &set_file
-                );
-            } else {
-                println!("Failed to create nyaadle.db");
-            }
+            println!("Failed to create nyaadle.db");
         }
     }
 }
 
-/// Function to create a database with the default tables
-fn db_create(set_path: &str) -> rusqlite::Result<()> {
-    let conn = Connection::open(&set_path)?;
-
-    // Create the directories table
-    conn.execute(
-        "create table if not exists directories (
-            option text primary key,
-            path text not null unique)
-            ",
-        [],
-    )?;
-
-    // Create the watchlist table
-    conn.execute(
-        "create table if not exists watchlist (
-            id integer primary key,
-            name text not null unique,
-            option text not null)
-            ",
-        [],
-    )?;
-    // Create the item_tracker table
-    conn.execute(
-        "create table if not exists item_tracker (
-            id integer primary key,
-            item blob not null unique,
-            latest blob not null unique)
-            ",
-        [],
-    )?;
-
-    Ok(())
-}
-
-/// Funtion to write the directory values to the directories table
-pub fn db_write_dir(set_path: &str, dir_key: &str, dir_val: &str) -> rusqlite::Result<()> {
-    // Collect the directory values
-    let mut dir = std::collections::HashMap::new();
-    dir.insert(dir_key, dir_val);
-
-    // Establish a connection to the database
-    let conn = Connection::open(&set_path)?;
-
-    // Insert the values into the table
-    for (key, val) in &dir {
-        conn.execute(
-            "insert into directories
-            (option, path) values (?1, ?2)",
-            &[&key.to_string(), &val.to_string()],
-        )?;
-    }
-
-    // return an Ok value
-    Ok(())
-}
-
-/// Function that updates the directory in the database
-pub fn update_write_dir(set_path: &str, dir_key: &str, dir_val: &str) -> rusqlite::Result<()> {
-    // Collect the directory values
-    let mut dir = std::collections::HashMap::new();
-    dir.insert(dir_key, dir_val);
-
-    // Establish a connection to the database
-    let conn = Connection::open(&set_path)?;
-
-    let mut stmt = conn.prepare("select path from directories where option = (?1)")?;
-    let mut rows = stmt.query(params![&dir_key])?;
-
-    let mut num_match = 0;
-
-    while let Some(_rows) = rows.next()? {
-        num_match += 1;
-    }
-    if num_match != 0 {
-        // Insert the values into the table
-        for (key, val) in &dir {
-            conn.execute(
-                "update directories set path = (?2)
-                where option = (?1)",
-                &[&key.to_string(), &val.to_string()],
-            )?;
-        }
-    } else if num_match == 0 {
-        conn.execute(
-            "insert into directories (option, path) values (?1, ?2)",
-            &[&dir_key.to_string(), &dir_val.to_string()],
-        )?;
-    }
-    // return an Ok value
-    Ok(())
-}
-/// Function to write the watchlist values to the watchlist table
-pub fn db_write_wl(set_path: &str, wl_key: &str, wl_val: &str) -> rusqlite::Result<()> {
-    // Collect the watchlist values
-    let mut wl = std::collections::HashMap::new();
-    wl.insert(wl_key, wl_val);
-
-    // Establish a connection to the database
-    let conn = Connection::open(&set_path)?;
-
-    // Insert the values into the table
-    for (key, val) in &wl {
-        conn.execute(
-            "insert into watchlist
-            (name, option) values (?1, ?2)",
-            &[&key.to_string(), &val.to_string()],
-        )?;
-    }
-
-    // return an Ok value
-    Ok(())
-}
-
-/// Deletes the item in the database
-pub fn db_delete_wl(set_path: &str, wl_key: &str) -> rusqlite::Result<()> {
-    let conn = Connection::open(&set_path)?;
-
-    conn.execute("delete from watchlist where id = (?1)", params![wl_key])?;
-    Ok(())
-}
-
-/// Sets the settings directory using User Variables.
-pub fn settings_dir() -> String {
-    // Get the config dir for the system
-    let mut set_dir = dirs::config_dir().unwrap();
-
-    // Push the needed values for nyaadle
-    set_dir.push("nyaadle");
-    set_dir.push("nyaadle");
-    set_dir.set_extension("db");
-
-    // Create the path string
-    let set_dir = String::from(set_dir.to_str().unwrap());
-
-    // Return the path
-    set_dir
-}
-
-/// Function that returns the values for the directories.
-/// This allows us to read the settings set by the user.
-pub fn get_settings(key: &str) -> rusqlite::Result<String> {
-    // Get the settings path
-    let set_dir = settings_dir();
-
-    // Establish a connection to the database
-    let conn = Connection::open(set_dir)?;
-    // Prepare the query
-    let mut stmt = conn.prepare("SELECT path FROM directories WHERE option = :name")?;
-    // execute the query
-    let rows = stmt.query_map(named_params! { ":name": &key }, |row| row.get(0))?;
-
-    // push the returned value into a String
-    let mut dir = String::new();
-    for dir_result in rows {
-        dir = dir_result.unwrap_or(String::from("empty"));
-    }
-    // Return the directory path
-    Ok(dir)
-}
-
-pub fn get_url() -> String {
-    let url: String;
-    if get_settings(&String::from("url")).unwrap() == "" {
-        url = String::from("https://nyaa.si/?page=rss");
-    } else {
-        url = get_settings(&String::from("url")).unwrap();
-    }
-    url
-}
-
-pub fn get_wl() -> Vec<Watchlist> {
-    // Read the watchlist from the database
-    let set_dir = settings_dir();
-    read_watch_list(&set_dir).expect("Failed to unpack vectors")
-}
-
-pub fn wl_builder(id: i32, item: String, opt: String) -> Vec<Watchlist> {
-    let wl_build = Watchlist::new().build(id, item, opt);
-    let wl = vec![wl_build];
-    wl
-}
-
+/// Ensures the database exists, creating it with defaults if not.
+/// Called at program start before the shared connection is opened.
 pub fn set_check() {
-    let set_path = settings_dir();
-
-    if !Path::new(&set_path).exists() {
+    if !Path::new(&settings_dir()).exists() {
         write_settings();
     }
 }
 
-pub fn get_log() -> String {
-    let log_dir: String;
-    let mut log_path_default = dirs::config_dir().unwrap();
-    log_path_default.push("nyaadle");
-    log_path_default.push("nyaadle");
-    log_path_default.set_extension("log");
+// ── Hot-path functions: take &Connection ────────────────────────────────────
+// These are called from the cron-triggered feed_parser path and share the
+// single connection opened in main(). Do not open new connections here.
 
-    if get_settings(&String::from("log")).unwrap() == "" {
-        log_dir = String::from(log_path_default.to_str().unwrap());
-    } else {
-        log_dir = get_settings(&String::from("log")).unwrap();
+/// Reads the value for `key` from the directories table.
+pub fn get_settings(conn: &Connection, key: &str) -> rusqlite::Result<String> {
+    let mut stmt = conn.prepare("SELECT path FROM directories WHERE option = :name")?;
+    let rows = stmt.query_map(named_params! { ":name": key }, |row| row.get(0))?;
+    let mut dir = String::new();
+    for dir_result in rows {
+        dir = dir_result.unwrap_or_default();
     }
-    log_dir
+    Ok(dir)
 }
-pub fn update_tracking(set_path: &str, trck_key: &str, trck_val: &str) -> rusqlite::Result<()> {
-    // Collect the directory values
-    let mut trck = std::collections::HashMap::new();
-    trck.insert(trck_key, trck_val);
 
-    // Establish a connection to the database
-    let conn = Connection::open(&set_path)?;
-
-    let mut stmt = conn.prepare("select latest from item_tracker where item = (?1)")?;
-    let mut rows = stmt.query(params![&trck_key])?;
-
-    let mut num_match = 0;
-
-    while let Some(_rows) = rows.next()? {
-        num_match += 1;
-    }
-    if num_match != 0 {
-        // Insert the values into the table
-        for (key, val) in &trck {
-            conn.execute(
-                "update item_tracker set latest = (?2)
-                where item = (?1)",
-                &[&key.to_string(), &val.to_string()],
-            )?;
-        }
-    } else if num_match == 0 {
-        conn.execute(
-            "insert into item_tracker (item, latest) values (?1, ?2)",
-            &[&trck_key.to_string(), &trck_val.to_string()],
-        )?;
-    }
-    // return an Ok value
-    Ok(())
+/// Returns the RSS feed URL, falling back to the nyaa.si default.
+pub fn get_url(conn: &Connection) -> String {
+    get_settings(conn, "url")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| String::from("https://nyaa.si/?page=rss"))
 }
-pub fn update_wl(set_path: &str, wl_new_key: &str, wl_opt: &str, id: &str) -> rusqlite::Result<()> {
-    // Establish a connection to the database
-    let conn = Connection::open(&set_path)?;
 
-    let mut stmt = conn.prepare("select * from watchlist where id = :id")?;
-    let rows = stmt.query_map(&[(":id", &id)], |row| {
+/// Returns the log file path, falling back to the default location.
+pub fn get_log(conn: &Connection) -> String {
+    get_settings(conn, "log")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            let mut p = dirs::config_dir().unwrap();
+            p.push("nyaadle");
+            p.push("nyaadle");
+            p.set_extension("log");
+            String::from(p.to_str().unwrap())
+        })
+}
+
+/// Returns the full watchlist from the database.
+pub fn get_wl(conn: &Connection) -> Vec<Watchlist> {
+    read_watch_list(conn).expect("Failed to read watchlist")
+}
+
+/// Builds a single-entry watchlist vector, used for one-shot parses.
+pub fn wl_builder(id: i32, item: String, opt: String) -> Vec<Watchlist> {
+    vec![Watchlist::new().build(id, item, opt)]
+}
+
+/// Returns the values inside the watchlist table.
+pub fn read_watch_list(conn: &Connection) -> rusqlite::Result<Vec<Watchlist>> {
+    let mut stmt = conn.prepare("SELECT * FROM watchlist")?;
+    let stored = stmt.query_map([], |row| {
         Ok(Watchlist::new().build(row.get(0)?, row.get(1)?, row.get(2)?))
     })?;
-    let mut row_vec = Vec::new();
-    for item in rows {
-        row_vec.push(item?);
+    let mut watch_list = Vec::new();
+    for item in stored {
+        watch_list.push(item?);
     }
-    let mut num_match = 0;
-    for _row in row_vec.iter() {
-        num_match += 1;
-    }
-    if num_match != 0 {
-        let mut wl_old_key: &String;
-        for item in row_vec.iter() {
-            wl_old_key = &item.title;
-            conn.execute(
-                "update item_tracker set item = (?2) where item = (?1)",
-                &[&wl_old_key.to_string(), &wl_new_key.to_string()],
-            )?;
-        }
-        // Insert the values into the table
-        conn.execute(
-            "update watchlist set name = (?2), option = (?3)
-                where id = (?1)",
-            &[
-                &id.to_string(),
-                &wl_new_key.to_string(),
-                &wl_opt.to_string(),
-            ],
-        )?;
-    } else if num_match == 0 {
-        conn.execute(
-            "insert into watchlist (name, option) values (?1, ?2)",
-            &[&wl_new_key.to_string(), &wl_opt.to_string()],
-        )?;
-    }
-    // return an Ok value
+    Ok(watch_list)
+}
+
+/// Writes a directory key/value pair to the directories table.
+pub fn db_write_dir(conn: &Connection, dir_key: &str, dir_val: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO directories (option, path) VALUES (?1, ?2)",
+        params![dir_key, dir_val],
+    )?;
     Ok(())
 }
-pub fn get_tracking(key: &str) -> rusqlite::Result<String> {
-    // Get the settings path
-    let set_dir = settings_dir();
-    db_create(&set_dir)?;
 
-    // Establish a connection to the database
-    let conn = Connection::open(set_dir)?;
-    // Prepare the query
+/// Updates an existing directory entry, or inserts it if not present.
+pub fn update_write_dir(conn: &Connection, dir_key: &str, dir_val: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO directories (option, path) VALUES (?1, ?2)
+         ON CONFLICT(option) DO UPDATE SET path = excluded.path",
+        params![dir_key, dir_val],
+    )?;
+    Ok(())
+}
+
+/// Writes a new entry to the watchlist table.
+pub fn db_write_wl(conn: &Connection, wl_key: &str, wl_val: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO watchlist (name, option) VALUES (?1, ?2)",
+        params![wl_key, wl_val],
+    )?;
+    Ok(())
+}
+
+/// Updates an existing watchlist entry by ID, or inserts it if not present.
+pub fn update_wl(
+    conn: &Connection,
+    wl_new_key: &str,
+    wl_opt: &str,
+    id: &str,
+) -> rusqlite::Result<()> {
+    let exists: bool = conn.query_row(
+        "SELECT COUNT(*) FROM watchlist WHERE id = ?1",
+        params![id],
+        |row| row.get::<_, i64>(0),
+    )? > 0;
+
+    if exists {
+        // Keep item_tracker in sync when the watchlist title changes
+        let old_title: String = conn.query_row(
+            "SELECT name FROM watchlist WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )?;
+        conn.execute(
+            "UPDATE item_tracker SET item = ?2 WHERE item = ?1",
+            params![old_title, wl_new_key],
+        )?;
+        conn.execute(
+            "UPDATE watchlist SET name = ?2, option = ?3 WHERE id = ?1",
+            params![id, wl_new_key, wl_opt],
+        )?;
+    } else {
+        conn.execute(
+            "INSERT INTO watchlist (name, option) VALUES (?1, ?2)",
+            params![wl_new_key, wl_opt],
+        )?;
+    }
+    Ok(())
+}
+
+/// Deletes a watchlist entry by ID.
+pub fn db_delete_wl(conn: &Connection, wl_key: &str) -> rusqlite::Result<()> {
+    conn.execute("DELETE FROM watchlist WHERE id = ?1", params![wl_key])?;
+    Ok(())
+}
+
+/// Returns the last-seen item for a given watchlist title.
+pub fn get_tracking(conn: &Connection, key: &str) -> rusqlite::Result<String> {
     let mut stmt = conn.prepare("SELECT latest FROM item_tracker WHERE item = :name")?;
-    // execute the query
-    let rows = stmt.query_map(named_params! { ":name": &key }, |row| row.get(0))?;
-
-    // push the returned value into a String
+    let rows = stmt.query_map(named_params! { ":name": key }, |row| row.get(0))?;
     let mut trck = String::new();
     for trck_result in rows {
         trck = trck_result.unwrap();
     }
-    // Return the directory path
     Ok(trck)
 }
-pub fn arg_set(key: &str, value: &str) {
-    let set_file = settings_dir();
-    update_write_dir(&set_file, &key, &value).expect("Failed to write to database.");
-    match key {
-        "dl-dir" => println!("Updated Download directory to \"{}\"", &value),
-        "ar-dir" => println!("Updated Archive directory to \"{}\"", &value),
-        "url" => println!("Updated RSS Feed URL to \"{}\"", &value),
-        "log" => println!("Updated log file location to \"{}\"", &value),
-        #[cfg(feature = "discord")]
-        "webhk_url" => println!("Updated discord webhook url to \"{}\"", &value),
-        _ => println!("Unknown key value."),
-    };
+
+/// Updates the last-seen item for a watchlist title, inserting if not present.
+pub fn update_tracking(conn: &Connection, trck_key: &str, trck_val: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO item_tracker (item, latest) VALUES (?1, ?2)
+         ON CONFLICT(item) DO UPDATE SET latest = excluded.latest",
+        params![trck_key, trck_val],
+    )?;
+    Ok(())
 }
-pub fn arg_get_set(key: &str) {
-    let value = get_settings(&key).expect("Unable to get specified setting.");
+
+/// Sets a key in the directories table from the command line.
+pub fn arg_set(conn: &Connection, key: &str, value: &str) {
+    update_write_dir(conn, key, value).expect("Failed to write to database.");
+    match key {
+        "dl-dir" => println!("Updated Download directory to \"{}\"", value),
+        "ar-dir" => println!("Updated Archive directory to \"{}\"", value),
+        "url" => println!("Updated RSS Feed URL to \"{}\"", value),
+        "log" => println!("Updated log file location to \"{}\"", value),
+        #[cfg(feature = "discord")]
+        "webhk_url" => println!("Updated Discord webhook URL to \"{}\"", value),
+        _ => println!("Unknown key."),
+    }
+}
+
+/// Prints a key's current value from the directories table.
+pub fn arg_get_set(conn: &Connection, key: &str) {
+    let value = get_settings(conn, key).expect("Unable to get specified setting.");
     match key {
         "dl-dir" => println!("Download Directory: {}", value),
         "ar-dir" => println!("Archive Directory: {}", value),
@@ -505,33 +366,18 @@ pub fn arg_get_set(key: &str) {
         "log" => println!("Log File Path: {}", value),
         "db-ver" => println!("Database version: {}", value),
         #[cfg(feature = "discord")]
-        "webhk_url" => println!("Discord Webhook URL: {}", &value),
+        "webhk_url" => println!("Discord Webhook URL: {}", value),
         _ => unreachable!("Setting not found."),
     }
 }
 
-pub fn get_db_ver() -> rusqlite::Result<()> {
-    let set_path = settings_dir();
+/// Ensures the db-ver entry exists in the directories table.
+/// TODO: replace with a proper migration system when schema changes are needed.
+pub fn get_db_ver(conn: &Connection) -> rusqlite::Result<()> {
     let default = Settings::default();
-    // Establish a connection to the database
-    let conn = Connection::open(&set_path)?;
-
-    let mut stmt = conn.prepare("select path from directories where option = (?1)")?;
-    let mut rows = stmt.query(params![&default.ver_key])?;
-
-    let mut num_match = 0;
-
-    while let Some(_rows) = rows.next()? {
-        num_match += 1;
-    }
-    if num_match != 0 {
-        Ok(())
-    } else {
-        conn.execute(
-            "insert into directories (option, path) values (?1, ?2)",
-            &[&default.ver_key.to_string(), &default.ver_val.to_string()],
-        )?;
-        // return an Ok value
-        Ok(())
-    }
+    conn.execute(
+        "INSERT OR IGNORE INTO directories (option, path) VALUES (?1, ?2)",
+        params![default.ver_key, default.ver_val],
+    )?;
+    Ok(())
 }
