@@ -1,6 +1,6 @@
 [package]
 name = "nyaadle"
-version = "3.0.0-dev.3"
+version = "3.0.0-dev.4"
 authors = ["Joash Christian Liwanag <nightlock0326@gmail.com>"]
 edition = "2018"
 description = "A small rss parser and downloader for a certain cat-themed website"
@@ -19,7 +19,7 @@ log = "0.4.22"
 opener = "0.7.2"
 tokio = { version = "1.42.0", features = ["full"]}
 tokio-macros = { version = "2.4.0"}
-time = "0.3.37"
+time = { version = "0.3.37", features = ["local-offset", "formatting", "macros"] }
 anyhow = "1.0"
 serenity = { version = "0.12", optional = true }
 

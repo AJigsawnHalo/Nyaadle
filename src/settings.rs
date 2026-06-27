@@ -1,6 +1,8 @@
 use rusqlite::{named_params, params, Connection};
 use std::fs::File;
 use std::path::Path;
+use time::OffsetDateTime;
+use time::format_description;
 
 /// Settings Struct
 struct Settings {
@@ -24,6 +26,15 @@ pub struct Watchlist {
     pub id: i32,
     pub title: String,
     pub option: String,
+}
+
+///Public Log Struct
+#[derive(Clone, Debug)]
+pub struct Log {
+    pub id: i32,
+    pub timestamp: String,
+    pub level: String,
+    pub message: String,
 }
 
 impl Settings {
@@ -123,6 +134,14 @@ fn db_create(conn: &Connection) -> rusqlite::Result<()> {
             id     INTEGER PRIMARY KEY,
             item   BLOB NOT NULL UNIQUE,
             latest BLOB NOT NULL UNIQUE)",
+        [],
+    )?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS logs (
+            id        INTEGER PRIMARY KEY,
+            timestamp TEXT NOT NULL,
+            level     TEXT NOT NULL,
+            message   TEXT NOT NULL)",
         [],
     )?;
     Ok(())
@@ -372,12 +391,79 @@ pub fn arg_get_set(conn: &Connection, key: &str) {
 }
 
 /// Ensures the db-ver entry exists in the directories table.
-/// TODO: replace with a proper migration system when schema changes are needed.
 pub fn get_db_ver(conn: &Connection) -> rusqlite::Result<()> {
     let default = Settings::default();
     conn.execute(
         "INSERT OR IGNORE INTO directories (option, path) VALUES (?1, ?2)",
         params![default.ver_key, default.ver_val],
     )?;
+
+    let version = get_settings(conn, "db-ver").unwrap_or_default();
+    match version.as_str() {
+        "3.0" => {
+            // Current version, ensure all tables exist
+            db_create(conn)?;
+        }
+        _ => {
+            // Older or unknown version, run migration
+            migrate(conn)?;
+        }
+    }
     Ok(())
+}
+
+/// Runs database migrations based on the current version.
+/// Add new match arms here as new versions are released.
+fn migrate(conn: &Connection) -> rusqlite::Result<()> {
+    let version = get_settings(conn, "db-ver").unwrap_or_default();
+    match version.as_str() {
+        "2.0" => {
+            db_create(conn)?;
+            update_write_dir(conn, "db-ver", "3.0")?;
+            println!("Migrated database from 2.0 to 3.0");
+        }
+        _ => {
+            db_create(conn)?;
+        }
+    }
+    Ok(())
+}
+
+/// Writes a log entry to the logs table.
+pub fn write_log(conn: &Connection, level: &str, message: &str) -> rusqlite::Result<()> {
+    let format = format_description::parse(
+        "[year]-[month repr:short]-[day] [weekday repr:short] [hour]:[minute]:[second]",
+    )
+    .unwrap();
+    let timestamp = OffsetDateTime::now_local()
+        .unwrap_or(OffsetDateTime::now_utc())
+        .format(&format)
+        .unwrap_or_else(|_| String::from("unknown"));
+
+    conn.execute(
+        "INSERT INTO logs (timestamp, level, message) VALUES (?1, ?2, ?3)",
+        params![timestamp, level, message],
+    )?;
+    Ok(())
+}
+
+/// Reads log entries from thelog table.
+pub fn read_logs(conn: &Connection) -> rusqlite::Result<Vec<Log>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, timestamp, level, message FROM logs ORDER BY id DESC LIMIT 500",
+    )?;
+    let stored = stmt.query_map([], |row| {
+        Ok(Log {
+            id: row.get(0)?,
+            timestamp: row.get(1)?,
+            level: row.get(2)?,
+            message: row.get(3)?,
+        })
+    })?;
+    let mut logs = Vec::new();
+    for entry in stored {
+        logs.push(entry?);
+    }
+    Ok(logs)
+
 }

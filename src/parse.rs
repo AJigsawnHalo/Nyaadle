@@ -28,9 +28,10 @@ fn filename_from_url(url: &str) -> &str {
 
 /// Checks if the target has already been downloaded and archived.
 /// Returns 0 if found (skip), 1 if not found (proceed).
-async fn archive_check(target: &str, archive_dir: &str, force: bool) -> Result<u8> {
+async fn archive_check(target: &str, archive_dir: &str, force: bool, conn: &Connection) -> Result<u8> {
     if force {
         warn!("Force option enabled.");
+        let _ = settings::write_log(conn, "WARN", "Force option enabled");
         return Ok(1);
     }
     let path = Path::new(archive_dir).join(filename_from_url(target));
@@ -59,7 +60,7 @@ async fn downloader(conn: &Connection, target: &str, title: &str, force: bool) -
         std::fs::create_dir_all(&archive_dir).expect("Failed to create archive directory");
     }
 
-    match archive_check(target, &archive_dir, force).await? {
+    match archive_check(target, &archive_dir, force, conn).await? {
         1 => {
             let response = reqwest::get(target).await?;
 
@@ -88,6 +89,7 @@ async fn downloader(conn: &Connection, target: &str, title: &str, force: bool) -
             copy(&mut dest2, &mut archive)?;
 
             info!("Downloaded {}", title);
+            let _ = settings::write_log(conn, "INFO", &format!("Downloaded {}", title));
 
             #[cfg(feature = "discord")]
             {
@@ -110,6 +112,7 @@ async fn downloader(conn: &Connection, target: &str, title: &str, force: bool) -
 /// Downloads a list of URLs directly, bypassing the watchlist/feed logic.
 pub async fn arg_dl(conn: &Connection, links: Vec<String>) -> Result<()> {
     info!("Nyaadle started in download mode.");
+    let _ = settings::write_log(conn, "INFO", "Nyaadle started in download mode.");
     let mut num_dl = 0;
 
     for link in links.iter() {
@@ -126,6 +129,7 @@ pub async fn arg_dl(conn: &Connection, links: Vec<String>) -> Result<()> {
                     Err(_) => println!("Error. Path not found."),
                 }
                 info!("Downloaded magnet link.");
+                let _ = settings::write_log(conn, "INFO", "Downloaded magnet link."); 
             } else {
                 match downloader(conn, link, link, true).await? {
                     1 => num_dl += 1,
@@ -139,6 +143,7 @@ pub async fn arg_dl(conn: &Connection, links: Vec<String>) -> Result<()> {
         debug!("No items downloaded. Nyaadle closed.");
     } else {
         info!("{} items downloaded. Nyaadle closed.", num_dl);
+        let _ = settings::write_log(conn, "INFO", &format!("{} items downloaded. Nyaadle closed.", num_dl));
     }
     Ok(())
 }
@@ -150,7 +155,7 @@ fn tracking_check(conn: &Connection, item: String, wl_title: &str, force: bool) 
         println!("Item already downloaded. Skipping...");
         true
     } else {
-        settings::update_tracking(conn, wl_title, &item).is_ok();
+        let _ = settings::update_tracking(conn, wl_title, &item).is_ok();
         false
     }
 }
@@ -177,6 +182,7 @@ async fn download_logic(
 
     if target.contains("magnet:") {
         info!("Downloaded {}", title);
+        let _ = settings::write_log(conn, "INFO", &format!("Downloaded {}", title));
         match opener::open(target) {
             Ok(_) => Ok(1),
             Err(_) => Ok(0),
@@ -200,11 +206,13 @@ pub async fn feed_parser(
 ) -> Result<()> {
     if check {
         info!("Nyaadle started in checking mode.");
+        let _ = settings::write_log(conn, "INFO", "Nyaadle started in checking mode.");
     }
     let content = reqwest::get(&url).await?.bytes().await?;
     let channel = Channel::read_from(&content[..]).unwrap_or_else(|_| {
         println!("Unable to connect to website. Exiting...");
         error!("Unable to connect to website. Exiting...");
+        let _ = settings::write_log(conn, "ERROR", "Unable to connect to website. Exiting...");
         std::process::exit(1);
     });
     nyaadle_logic(conn, channel.into_items(), watch_list, check, force).await
@@ -228,6 +236,7 @@ pub async fn nyaadle_logic(
 
     if watch_list.is_empty() || watch_list.iter().all(|w| w.title.is_empty()) {
         warn!("Watch-list not found.");
+        let _ = settings::write_log(conn, "WARN", "Watch-list not found.");
         println!("Please set a watch-list by running 'nyaadle wle --add'");
         return Ok(());
     }
@@ -235,6 +244,7 @@ pub async fn nyaadle_logic(
     for anime in &watch_list {
         if anime.option.is_empty() {
             warn!("Download option not found for \"{}\".", anime.title);
+            let _ = settings::write_log(conn, "WARN", &format!("Download option not found for \"{}\".", anime.title));
             println!("Please set a download option using 'nyaadle wle --edit'");
             continue;
         }
@@ -282,6 +292,7 @@ pub async fn nyaadle_logic(
         debug!("No items downloaded. Nyaadle closed.");
     } else {
         info!("{} items downloaded. Nyaadle closed.", num_dl);
+        let _ = settings::write_log(conn, "INFO", &format!("{} items downloaded. Nyaadle closed.", num_dl));
     }
 
     Ok(())

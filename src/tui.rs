@@ -1,5 +1,6 @@
 use crate::settings;
 use crate::settings::Watchlist;
+use crate::settings::Log;
 use cursive::traits::*;
 use cursive::views::{
     Button, Dialog, DummyView, EditView, LinearLayout, PaddedView, SelectView, TextView,
@@ -14,6 +15,14 @@ enum WatchColumn {
     Id,
     Title,
     Option,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+/// Columns for the Log viewer
+enum LogColumn {
+    Timestamp,
+    Level,
+    Message,
 }
 
 /// Implement the Watch-list Editor Table
@@ -36,6 +45,26 @@ impl TableViewItem<WatchColumn> for Watchlist {
         }
     }
 }
+/// Implement the Log Viewer Table
+impl TableViewItem<LogColumn> for Log {
+    fn to_column(&self, column: LogColumn) -> String {
+        match column {
+            LogColumn::Timestamp => self.timestamp.clone(),
+            LogColumn::Level     => self.level.clone(),
+            LogColumn::Message   => self.message.clone(),
+        }
+    }
+    fn cmp(&self, other: &Self, column: LogColumn) -> Ordering
+    where
+        Self: Sized,
+    {
+        match column {
+            LogColumn::Timestamp => self.timestamp.cmp(&other.timestamp),
+            LogColumn::Level     => self.level.cmp(&other.level),
+            LogColumn::Message   => self.message.cmp(&other.message),
+        }
+    }
+}
 
 /// The main TUI of Nyaadle
 pub fn main_tui() {
@@ -49,6 +78,7 @@ fn on_submit_main(s: &mut Cursive, item: &str) {
     match item {
         "wle" => wle_tui(s),
         "set" => set_tui(s),
+        "log" => log_tui(s),
         _ => unreachable!("Not in item list"),
     };
 }
@@ -58,6 +88,7 @@ fn main_tui_layer(s: &mut Cursive) {
     let select = SelectView::<String>::new()
         .item("Watch-list Editor", String::from("wle"))
         .item("Settings", String::from("set"))
+        .item("Log Viewer",        String::from("log"))
         .on_submit(on_submit_main)
         .with_name("select")
         .fixed_size((75, 10));
@@ -432,5 +463,34 @@ fn log_edit(s: &mut Cursive, item: &str) {
         .button("Cancel", |s| set_tui(s))
         .title("Edit Log file path")
         .fixed_size((70, 10)),
+    );
+}
+
+/// The Log Viewer TUI
+fn log_tui(s: &mut Cursive) {
+    s.pop_layer();
+
+    let conn = settings::open_conn().expect("Failed to open database.");
+    let items = settings::read_logs(&conn).expect("Failed to read logs.");
+
+    let mut table = TableView::<Log, LogColumn>::new()
+        .column(LogColumn::Timestamp, "Timestamp", |c| c.width(25))
+        .column(LogColumn::Level,     "Level",     |c| c.width(8))
+        .column(LogColumn::Message,   "Message",   |c| c.width(55))
+        .default_column(LogColumn::Timestamp);
+
+    table.set_items(items);
+
+    let buttons = LinearLayout::horizontal()
+        .child(Button::new("Back", |s| main_tui_layer(s)))
+        .child(Button::new("Quit", Cursive::quit));
+
+    s.add_layer(
+        Dialog::around(
+            LinearLayout::vertical()
+                .child(table.with_name("log-view").min_size((88, 18)))
+                .child(buttons),
+        )
+        .title("Log Viewer"),
     );
 }
