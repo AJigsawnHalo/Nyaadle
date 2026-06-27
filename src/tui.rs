@@ -290,9 +290,18 @@ fn set_tui(s: &mut Cursive) {
 
     let select = SelectView::<String>::new()
         .item("Download directory", String::from("dl-dir"))
-        .item("Archive directory", String::from("ar-dir"))
-        .item("RSS Feed URL", String::from("url"))
-        .item("Log File Path", String::from("log"))
+        .item("Archive directory",  String::from("ar-dir"))
+        .item("RSS Feed URL",       String::from("url"))
+        .item("Log File Path",      String::from("log"));
+
+    #[cfg(feature = "discord")]
+    let select = {
+    let mut s = select;
+    s.add_item("Discord Webhook URL", String::from("webhk_url"));
+    s
+};
+
+    let select = select
         .on_submit(on_submit_set)
         .with_name("set_select")
         .fixed_size((50, 10));
@@ -320,6 +329,8 @@ fn on_submit_set(s: &mut Cursive, item: &str) {
         "dl-dir" => dl_edit(s, item),
         "url" => url_edit(s, item),
         "log" => log_edit(s, item),
+         #[cfg(feature = "discord")]
+        "webhk_url" => webhk_edit(s, item),
         _ => unreachable!("Item not found in list"),
     };
 }
@@ -492,5 +503,39 @@ fn log_tui(s: &mut Cursive) {
                 .child(buttons),
         )
         .title("Log Viewer"),
+    );
+}
+
+#[cfg(feature = "discord")]
+fn webhk_edit(s: &mut Cursive, item: &str) {
+    let conn = settings::open_conn().expect("Failed to open database.");
+    let webhk_url = settings::get_settings(&conn, item).unwrap();
+    let key = String::from(item);
+
+    let edit = EditView::new()
+        .content(webhk_url)
+        .with_name("webhk_edit")
+        .fixed_width(70);
+
+    s.add_layer(
+        Dialog::around(
+            LinearLayout::vertical()
+                .child(TextView::new("Set the Discord webhook URL"))
+                .child(edit),
+        )
+        .button("Ok", move |s| {
+            let value = s
+                .call_on_name("webhk_edit", |view: &mut EditView| {
+                    view.get_content().to_string()
+                })
+                .expect("Failed to get value");
+            let conn = settings::open_conn().expect("Failed to open database.");
+            settings::update_write_dir(&conn, &key, &value)
+                .expect("Failed to write to database");
+            s.pop_layer();
+        })
+        .button("Cancel", |s| set_tui(s))
+        .title("Edit Discord Webhook URL")
+        .fixed_size((70, 10)),
     );
 }
