@@ -26,6 +26,12 @@ async fn main() {
 
     // Set up logging
     let log_path = settings::get_log(&conn);
+    if let Some(log_dir) = std::path::Path::new(&log_path).parent() {
+        if !log_dir.exists() {
+            std::fs::create_dir_all(log_dir).expect("Failed to create log directory.");
+        }
+    }
+
     let time_format = format_description!(
         "[year]-[month repr:short]-[day] [weekday repr:short] [hour]:[minute]:[second]"
     );
