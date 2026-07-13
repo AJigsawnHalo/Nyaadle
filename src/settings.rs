@@ -632,7 +632,7 @@ fn backfill_feed_id(conn: &Connection) -> rusqlite::Result<()> {
 
 /// Writes a log entry to the logs table.
 pub fn write_log(conn: &Connection, level: &str, message: &str) -> rusqlite::Result<()> {
-    let format = format_description::parse(
+    let format = format_description::parse_borrowed::<3>(
         "[year]-[month repr:short]-[day] [weekday repr:short] [hour]:[minute]:[second]",
     )
     .unwrap();
