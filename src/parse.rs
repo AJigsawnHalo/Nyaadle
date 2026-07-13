@@ -210,15 +210,12 @@ pub async fn arg_parse(
     item: Option<String>,
     vid_opt: Option<String>,
 ) -> Result<()> {
-    // 1. Logic for specific item parsing
     if let (Some(title), Some(opt)) = (item, vid_opt) {
         println!("Parsing for: '{}' with option '{}'", &title, &opt);
-        // We still reuse feed_parser, but pass the item/option through
         feed_parser(conn, false, force, feed, Some(title), Some(opt)).await?;
         return Ok(());
     }
 
-    // 2. Logic for standard/external feed parsing
     feed_parser(conn, false, force, feed, None, None).await?;
     Ok(())
 }
