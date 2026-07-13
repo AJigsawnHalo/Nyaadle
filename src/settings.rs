@@ -155,9 +155,12 @@ fn db_create(conn: &Connection) -> rusqlite::Result<()> {
     )?;
     conn.execute(
         "CREATE TABLE IF NOT EXISTS item_tracker (
-            id     INTEGER PRIMARY KEY,
-            item   BLOB NOT NULL UNIQUE,
-            latest BLOB NOT NULL UNIQUE)",
+            id      INTEGER PRIMARY KEY,
+            item    BLOB NOT NULL,
+            latest  BLOB NOT NULL,
+            feed_id INTEGER NOT NULL DEFAULT 0,
+            UNIQUE(item, feed_id)
+        )",
         [],
     )?;
     conn.execute(
@@ -424,22 +427,32 @@ pub fn db_delete_wl(conn: &Connection, wl_key: &str) -> rusqlite::Result<()> {
 }
 
 /// Returns the last-seen item for a given watchlist title.
-pub fn get_tracking(conn: &Connection, key: &str) -> rusqlite::Result<String> {
-    let mut stmt = conn.prepare("SELECT latest FROM item_tracker WHERE item = :name")?;
-    let rows = stmt.query_map(named_params! { ":name": key }, |row| row.get(0))?;
-    let mut trck = String::new();
-    for trck_result in rows {
-        trck = trck_result.unwrap();
+pub fn get_tracking(conn: &Connection, key: &str, feed_id: i32) -> rusqlite::Result<String> {
+    let mut stmt = conn.prepare(
+        "SELECT latest FROM item_tracker WHERE item = :name AND feed_id = :feed_id"
+    )?;
+    
+    let mut rows = stmt.query(named_params! { 
+        ":name": key, 
+        ":feed_id": feed_id 
+    })?;
+
+    if let Some(row) = rows.next()? {
+        let latest_val: String = row.get(0)?;
+        Ok(latest_val)
+    } else {
+        Ok(String::new())
     }
-    Ok(trck)
 }
 
 /// Updates the last-seen item for a watchlist title, inserting if not present.
-pub fn update_tracking(conn: &Connection, trck_key: &str, trck_val: &str) -> rusqlite::Result<()> {
+pub fn update_tracking(conn: &Connection, trck_key: &str, trck_val: &str, feed_id: i32) -> rusqlite::Result<()> {
     conn.execute(
-        "INSERT INTO item_tracker (item, latest) VALUES (?1, ?2)
-         ON CONFLICT(item) DO UPDATE SET latest = excluded.latest",
-        params![trck_key, trck_val],
+        "INSERT INTO item_tracker (item, latest, feed_id) 
+         VALUES (?1, ?2, ?3)
+         ON CONFLICT(item, feed_id) 
+         DO UPDATE SET latest = excluded.latest",
+        params![trck_key, trck_val, feed_id],
     )?;
     Ok(())
 }
@@ -626,6 +639,43 @@ fn backfill_feed_id(conn: &Connection) -> rusqlite::Result<()> {
 
     // `url` no longer lives in directories.
     conn.execute("DELETE FROM directories WHERE option = 'url'", [])?;
+
+    let mut stmt = conn.prepare("PRAGMA table_info(item_tracker)")?;
+    let mut rows = stmt.query([])?;
+    let mut has_feed_id = false;
+    
+    while let Some(row) = rows.next()? {
+        let col_name: String = row.get(1)?;
+        if col_name == "feed_id" {
+            has_feed_id = true;
+            break;
+        }
+    }
+
+    // If the legacy table doesn't have the column, migrate it inline
+    if !has_feed_id {
+        // Safe table-recreation pattern for SQLite composite constraints
+        conn.execute("ALTER TABLE item_tracker RENAME TO old_item_tracker;", [])?;
+        
+        conn.execute(
+            "CREATE TABLE item_tracker (
+                id      INTEGER PRIMARY KEY,
+                item    BLOB NOT NULL,
+                latest  BLOB NOT NULL,
+                feed_id INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(item, feed_id)
+            );",
+            [],
+        )?;
+
+        conn.execute(
+            "INSERT INTO item_tracker (id, item, latest, feed_id)
+             SELECT id, item, latest, ?1 FROM old_item_tracker;",
+            params![default_feed_id],
+        )?;
+
+        conn.execute("DROP TABLE old_item_tracker;", [])?;
+    }
 
     Ok(())
 }

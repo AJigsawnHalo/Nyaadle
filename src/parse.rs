@@ -123,7 +123,8 @@ pub async fn arg_dl(conn: &Connection, links: Vec<String>) -> Result<()> {
         if link.is_empty() || link == "\n" {
             break;
         }
-        if !tracking_check(conn, link.to_string(), link, true) {
+        // Pass 0 as the default feed_id here
+        if !tracking_check(conn, link.to_string(), link, true, 0) {
             if link.contains("magnet:") {
                 match opener::open(link) {
                     Ok(_) => {
@@ -157,13 +158,13 @@ pub async fn arg_dl(conn: &Connection, links: Vec<String>) -> Result<()> {
 }
 
 /// Checks the tracking table and updates it. Returns true if already downloaded.
-fn tracking_check(conn: &Connection, item: String, wl_title: &str, force: bool) -> bool {
-    let trck = settings::get_tracking(conn, wl_title).expect("Failed to get tracking.");
+fn tracking_check(conn: &Connection, item: String, wl_title: &str, force: bool, feed_id: i32) -> bool {
+    let trck = settings::get_tracking(conn, wl_title, feed_id).expect("Failed to get tracking.");
     if trck == item && !force {
         println!("Item already downloaded. Skipping...");
         true
     } else {
-        let _ = settings::update_tracking(conn, wl_title, &item).is_ok();
+        let _ = settings::update_tracking(conn, wl_title, &item, feed_id).is_ok();
         false
     }
 }
@@ -174,13 +175,13 @@ async fn download_logic(
     item: &rss::Item,
     wl_title: &str,
     force: bool,
+    feed_id: i32,
 ) -> Result<u8> {
     let title = item.title().expect("Failed to extract title");
 
-    if tracking_check(conn, title.to_string(), wl_title, force) {
+    if tracking_check(conn, title.to_string(), wl_title, force, feed_id) {
         return Ok(0);
     }
-
     println!("Downloading {}", title);
 
     let target = match item.link() {
@@ -378,7 +379,7 @@ pub async fn nyaadle_logic(
             if check {
                 println!("Found {}\n", title);
             } else {
-                match download_logic(conn, item, &anime.title, force).await? {
+                match download_logic(conn, item, &anime.title, force, anime.feed_id).await? {
                     1 => num_dl += 1,
                     _ => {}
                 }
