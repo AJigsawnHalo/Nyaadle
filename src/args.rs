@@ -40,7 +40,7 @@ enum Subcommands {
     #[clap(
         visible_alias = "t",
         about = "Opens a terminal interface to adjust watch-lists and settings.",
-        after_help = "ALIAS:\n     t\n\nEXAMPLE:\n     nyaadle tui\n     nyaadle t --settings\n     nyaadle t -w"
+        after_help = "ALIAS:\n     t\n\nEXAMPLE:\n     nyaadle tui\n     nyaadle t --settings\n     nyaadle t -w\n     nyaadle t -f"
     )]
     Tui {
         #[clap(short, long, help = "Opens the settings TUI.")]
@@ -48,6 +48,9 @@ enum Subcommands {
 
         #[clap(short, long, help = "Opens the watch-list editor.")]
         watchlist: bool,
+
+        #[clap(short, long, help = "Opens the feeds configuration editor.")]
+        feeds: bool,
     },
 
     #[clap(
@@ -207,8 +210,53 @@ enum Subcommands {
         #[clap(short, long, help = "Item Option.")]
         option: Option<String>,
 
+        #[clap(
+            short,
+            long,
+            help = "Feed name to link this item to. Falls back to default.",
+            value_name = "FEED_NAME"
+        )]
+        feed: Option<String>,
+
         #[clap(short, long)]
         print: bool,
+    },
+
+    #[clap(visible_alias = "fds", about = "Subcommand to configure RSS Feeds.")]
+    Feeds {
+        #[clap(short, long, help = "Add a new feed.")]
+        add: bool,
+
+        #[clap(short, long, help = "Edit an existing feed's URL.")]
+        edit: bool,
+
+        #[clap(short, long, help = "Rename an existing feed.")]
+        rename: bool,
+
+        #[clap(short, long, help = "Delete a feed and reassign or drop items.")]
+        delete: bool,
+
+        #[clap(long = "set-default", help = "Set a feed as the global default feed.")]
+        set_default: bool,
+
+        #[clap(short, long, help = "Print active feed names and URLs.")]
+        print: bool,
+
+        #[clap(long, help = "Print all columns including IDs.")]
+        all: bool,
+
+        #[clap(short, long, help = "Name of the feed.", value_name = "NAME")]
+        name: Option<String>,
+
+        #[clap(
+            long = "new-name",
+            help = "New name for renaming a feed.",
+            value_name = "NEW_NAME"
+        )]
+        new_name: Option<String>,
+
+        #[clap(short, long, help = "URL of the RSS feed.", value_name = "URL")]
+        url: Option<String>,
     },
 }
 
@@ -225,13 +273,16 @@ pub async fn args_parser(conn: &Connection) {
         Some(Subcommands::Tui {
             settings,
             watchlist,
+            feeds,
         }) => {
-            if settings && !watchlist {
-                tui::arg_tui("set");
-            } else if !settings && watchlist {
-                tui::arg_tui("wle");
+            if settings && !watchlist && !feeds {
+                tui::arg_tui("set"); //[cite: 7, 8]
+            } else if !settings && watchlist && !feeds {
+                tui::arg_tui("wle"); //[cite: 7, 8]
+            } else if !settings && !watchlist && feeds {
+                tui::arg_tui("fds"); // Route directly to your new feeds TUI[cite: 7, 8]
             } else {
-                tui::main_tui();
+                tui::main_tui(); // Fall back to the main selection layer[cite: 7, 8]
             }
         }
 
@@ -251,28 +302,19 @@ pub async fn args_parser(conn: &Connection) {
         }
 
         Some(Subcommands::Parse {
-            feed,
+            feed: _, // Prefix with underscore since custom override is handled by the loop now
             item,
             vid_opt,
-        }) => {
-            let url = feed.unwrap_or_else(|| settings::get_url(conn));
-            match (item, vid_opt) {
-                (Some(title), Some(opt)) => {
-                    println!("Parsing for: '{}' with option '{}'", &title, &opt);
-                    let wl = settings::wl_builder(0, title, opt);
-                    parse::feed_parser(conn, url, wl, false, args.force)
-                        .await
-                        .unwrap();
-                }
-                (None, None) => {
-                    let wl = settings::get_wl(conn);
-                    parse::feed_parser(conn, url, wl, false, args.force)
-                        .await
-                        .unwrap();
-                }
-                _ => println!("Both --title and --option are required together."),
+        }) => match (item, vid_opt) {
+            (Some(title), Some(opt)) => {
+                println!("Parsing for: '{}' with option '{}'", &title, &opt);
+                parse::feed_parser(conn, false, args.force).await.unwrap();
             }
-        }
+            (None, None) => {
+                parse::feed_parser(conn, false, args.force).await.unwrap();
+            }
+            _ => println!("Both --title and --option are required together."),
+        },
 
         Some(Subcommands::Settings {
             dl_dir,
@@ -330,6 +372,118 @@ pub async fn args_parser(conn: &Connection) {
             }
         }
 
+        Some(Subcommands::Feeds {
+            add,
+            edit,
+            rename,
+            delete,
+            set_default,
+            print,
+            all,
+            name,
+            new_name,
+            url,
+        }) => {
+            if add {
+                let n = name.expect("Feed name is required to add a feed.");
+                let u = url.expect("Feed URL is required to add a feed.");
+                settings::db_write_feed(conn, &n, &u, false).expect("Failed to save feed.");
+                println!("Successfully added feed \"{}\".", n);
+            } else if edit {
+                let n = name.expect("Feed name is required to edit a feed.");
+                let u = url.expect("New feed URL is required.");
+                // Assumed helper from Step 1
+                settings::update_feed_url(conn, &n, &u).expect("Failed to update feed URL.");
+                println!("Updated feed \"{}\" with new URL.", n);
+            } else if rename {
+                let n = name.expect("Current feed name is required.");
+                let nn = new_name.expect("New feed name is required via --new-name.");
+                // Assumed helper from Step 1
+                settings::rename_feed(conn, &n, &nn).expect("Failed to rename feed.");
+                println!("Renamed feed \"{}\" to \"{}\".", n, nn);
+            } else if set_default {
+                let n = name.expect("Feed name is required to set default.");
+                // Assumed helper from Step 1
+                settings::set_default_feed(conn, &n).expect("Failed to set default feed.");
+                println!("\"{}\" is now the default feed.", n);
+            } else if delete {
+                let n = name.expect("Feed name is required for deletion.");
+                let feeds = settings::read_feeds(conn).expect("Failed to read feeds.");
+
+                if feeds.len() <= 1 {
+                    println!("Error: Refusing deletion. Cannot delete the last remaining feed.");
+                    return;
+                }
+
+                let target_feed = feeds
+                    .iter()
+                    .find(|f| f.name == n)
+                    .expect("Specified feed not found.");
+
+                let mut replacement_default_name = None;
+                if target_feed.is_default {
+                    println!("'{}' is currently the default feed.", n);
+                    println!("Enter the name of the replacement default feed:");
+                    let mut input = String::new();
+                    std::io::stdin().read_line(&mut input).unwrap();
+                    let def_input = input.trim().to_string();
+                    if !feeds.iter().any(|f| f.name == def_input && f.name != n) {
+                        println!("Invalid replacement feed chosen. Aborting.");
+                        return;
+                    }
+                    replacement_default_name = Some(def_input);
+                }
+
+                println!("Enter feed name to reassign dependent watchlist items (leave empty to delete items):");
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).unwrap();
+                let reassign_input = input.trim();
+                let reassign_name = if !reassign_input.is_empty() {
+                    if !feeds
+                        .iter()
+                        .any(|f| f.name == reassign_input && f.name != n)
+                    {
+                        println!("Invalid reassignment feed chosen. Aborting.");
+                        return;
+                    }
+                    Some(reassign_input.to_string())
+                } else {
+                    None
+                };
+
+                // Assumed helper from Step 1 that executes the safe cascading update or deletion sequence
+                settings::db_delete_feed(
+                    conn,
+                    &n,
+                    replacement_default_name.as_deref(),
+                    reassign_name.as_deref(),
+                )
+                .expect("Failed to delete feed securely.");
+                println!("Feed '{}' successfully purged.", n);
+            } else if print {
+                let feeds = settings::read_feeds(conn).expect("Failed to read feeds.");
+                if all {
+                    println!("ID | Default | Feed Name | URL");
+                    for f in feeds {
+                        let def_marker = if f.is_default { "*" } else { " " };
+                        println!("{} |    {}    | {} | {}", f.id, def_marker, f.name, f.url);
+                    }
+                } else {
+                    println!("Feed Name | URL");
+                    for f in feeds {
+                        let display_name = if f.is_default {
+                            format!("{} [default]", f.name)
+                        } else {
+                            f.name.clone()
+                        };
+                        println!("{} | {}", display_name, f.url);
+                    }
+                }
+            } else {
+                tui::arg_tui("fds");
+            }
+        }
+
         Some(Subcommands::WatchlistEditor {
             add,
             delete,
@@ -337,19 +491,50 @@ pub async fn args_parser(conn: &Connection) {
             item,
             value,
             option,
+            feed,
             print,
         }) => {
             if add && (!delete || !edit || !print) {
                 let tgt = item_builder(value, option);
-                settings::db_write_wl(conn, &tgt.0, &tgt.1)
+                let feed_id = if let Some(f_name) = feed {
+                    let feeds = settings::read_feeds(conn).expect("Failed to read feeds.");
+                    feeds
+                        .iter()
+                        .find(|f| f.name == f_name)
+                        .map(|f| f.id)
+                        .unwrap_or_else(|| {
+                            println!(
+                                "Feed '{}' not found! Falling back to system default.",
+                                f_name
+                            );
+                            settings::get_default_feed_id(conn)
+                                .expect("No default feed configured.")
+                        })
+                } else {
+                    settings::get_default_feed_id(conn)
+                        .expect("No default feed set. Run 'nyaadle feeds --add' first.")
+                };
+                settings::db_write_wl(conn, &tgt.0, &tgt.1, feed_id)
                     .expect("Failed to write to the database.");
                 println!("Added \"{} | {}\" to the watchlist.", &tgt.0, &tgt.1);
             } else if edit && (!add || !delete || !print) {
                 let tgt = item_builder(value, option);
                 if let Some(ids) = item {
                     for id in ids {
-                        settings::update_wl(conn, &tgt.0, &tgt.1, &id)
-                            .expect("Failed to write to the database.");
+                        // Check if a specific feed redirect was requested during the edit sequence
+                        if let Some(f_name) = &feed {
+                            let feeds = settings::read_feeds(conn).expect("Failed to read feeds.");
+                            if let Some(f) = feeds.iter().find(|f| f.name == *f_name) {
+                                // Assumed helper from Step 1 that handles updating details AND the feed_id
+                                settings::update_wl_with_feed(conn, &tgt.0, &tgt.1, f.id, &id)
+                                    .expect("Failed to update watchlist item feed relation.");
+                            } else {
+                                println!("Feed '{}' not found. Skipping relation shift.", f_name);
+                            }
+                        } else {
+                            settings::update_wl(conn, &tgt.0, &tgt.1, &id)
+                                .expect("Failed to write to the database.");
+                        }
                         println!("Updated {} to \"{} | {}\".", id, &tgt.0, &tgt.1);
                     }
                 }
@@ -362,9 +547,21 @@ pub async fn args_parser(conn: &Connection) {
                 }
             } else if print && (!add || !edit || !delete) {
                 let wl = settings::read_watch_list(conn).expect("Failed to unpack watchlist.");
-                println!("ID | Item Title | Option");
+                let feeds = settings::read_feeds(conn).expect("Failed to read feeds.");
+
+                println!("ID | Item Title | Option | Feed Name");
                 for item in wl {
-                    println!("{} | {} | {}", item.id, item.title, item.option);
+                    // Match the item's feed_id against our loaded feed records to extract the name
+                    let feed_name = feeds
+                        .iter()
+                        .find(|f| f.id == item.feed_id)
+                        .map(|f| f.name.as_str())
+                        .unwrap_or("Unknown");
+
+                    println!(
+                        "{} | {} | {} | {}",
+                        item.id, item.title, item.option, feed_name
+                    );
                 }
             } else {
                 tui::arg_tui("wle");
@@ -373,15 +570,9 @@ pub async fn args_parser(conn: &Connection) {
 
         None => {
             if args.check {
-                parse::feed_parser(
-                    conn,
-                    settings::get_url(conn),
-                    settings::get_wl(conn),
-                    true,
-                    false,
-                )
-                .await
-                .unwrap();
+                parse::feed_parser(conn, args.check, args.force)
+                    .await
+                    .unwrap();
             } else {
                 default_logic(conn, args.force).await;
             }
@@ -395,15 +586,7 @@ async fn default_logic(conn: &Connection, force: bool) {
     } else {
         debug!("Nyaadle started normally.");
     }
-    parse::feed_parser(
-        conn,
-        settings::get_url(conn),
-        settings::get_wl(conn),
-        false,
-        force,
-    )
-    .await
-    .unwrap();
+    parse::feed_parser(conn, false, force).await.unwrap();
 }
 
 fn item_builder(val: Option<String>, opt: Option<String>) -> (String, String) {

@@ -28,7 +28,12 @@ fn filename_from_url(url: &str) -> &str {
 
 /// Checks if the target has already been downloaded and archived.
 /// Returns 0 if found (skip), 1 if not found (proceed).
-async fn archive_check(target: &str, archive_dir: &str, force: bool, conn: &Connection) -> Result<u8> {
+async fn archive_check(
+    target: &str,
+    archive_dir: &str,
+    force: bool,
+    conn: &Connection,
+) -> Result<u8> {
     if force {
         warn!("Force option enabled.");
         let _ = settings::write_log(conn, "WARN", "Force option enabled");
@@ -129,7 +134,7 @@ pub async fn arg_dl(conn: &Connection, links: Vec<String>) -> Result<()> {
                     Err(_) => println!("Error. Path not found."),
                 }
                 info!("Downloaded magnet link.");
-                let _ = settings::write_log(conn, "INFO", "Downloaded magnet link."); 
+                let _ = settings::write_log(conn, "INFO", "Downloaded magnet link.");
             } else {
                 match downloader(conn, link, link, true).await? {
                     1 => num_dl += 1,
@@ -143,7 +148,11 @@ pub async fn arg_dl(conn: &Connection, links: Vec<String>) -> Result<()> {
         debug!("No items downloaded. Nyaadle closed.");
     } else {
         info!("{} items downloaded. Nyaadle closed.", num_dl);
-        let _ = settings::write_log(conn, "INFO", &format!("{} items downloaded. Nyaadle closed.", num_dl));
+        let _ = settings::write_log(
+            conn,
+            "INFO",
+            &format!("{} items downloaded. Nyaadle closed.", num_dl),
+        );
     }
     Ok(())
 }
@@ -197,25 +206,89 @@ async fn download_logic(
 
 /// Fetches and parses the RSS feed then runs the main logic.
 /// Pass `check = true` to print matches without downloading.
-pub async fn feed_parser(
-    conn: &Connection,
-    url: String,
-    watch_list: Vec<Watchlist>,
-    check: bool,
-    force: bool,
-) -> Result<()> {
+pub async fn feed_parser(conn: &Connection, check: bool, force: bool) -> Result<()> {
     if check {
         info!("Nyaadle started in checking mode.");
         let _ = settings::write_log(conn, "INFO", "Nyaadle started in checking mode.");
     }
-    let content = reqwest::get(&url).await?.bytes().await?;
-    let channel = Channel::read_from(&content[..]).unwrap_or_else(|_| {
-        println!("Unable to connect to website. Exiting...");
-        error!("Unable to connect to website. Exiting...");
-        let _ = settings::write_log(conn, "ERROR", "Unable to connect to website. Exiting...");
-        std::process::exit(1);
-    });
-    nyaadle_logic(conn, channel.into_items(), watch_list, check, force).await
+
+    // 1. Load all tracking channels and the master watchlist from the database
+    let feeds = settings::read_feeds(conn).unwrap_or_default();
+    let master_watchlist = settings::read_watch_list(conn).unwrap_or_default();
+    let mut total_dl: u32 = 0;
+
+    if master_watchlist.is_empty() || master_watchlist.iter().all(|w| w.title.is_empty()) {
+        warn!("Watch-list not found.");
+        let _ = settings::write_log(conn, "WARN", "Watch-list not found.");
+        println!("Please set a watch-list by running 'nyaadle wle --add'");
+        return Ok(());
+    }
+
+    // 2. Loop through every registered feed channel sequentially
+    for feed in feeds {
+        // Filter the watchlist down to only items targeting this specific feed channel
+        let local_watchlist: Vec<Watchlist> = master_watchlist
+            .iter()
+            .filter(|item| item.feed_id == feed.id)
+            .cloned()
+            .collect();
+
+        // Skip network request entirely if no watchlist items track this channel
+        if local_watchlist.is_empty() {
+            continue;
+        }
+
+        println!("Connecting to feed channel: {} ({})", feed.name, feed.url);
+
+        // Fetch the RSS stream safely
+        let content = match reqwest::get(&feed.url).await {
+            Ok(res) => match res.bytes().await {
+                Ok(bytes) => bytes,
+                Err(_) => {
+                    eprintln!(
+                        "Failed to stream data from channel '{}'. Skipping...",
+                        feed.name
+                    );
+                    continue;
+                }
+            },
+            Err(_) => {
+                eprintln!("Unable to connect to '{}'. Skipping channel...", feed.name);
+                continue;
+            }
+        };
+
+        let channel = match Channel::read_from(&content[..]) {
+            Ok(ch) => ch,
+            Err(_) => {
+                eprintln!(
+                    "Failed to parse XML for channel '{}'. Skipping...",
+                    feed.name
+                );
+                continue;
+            }
+        };
+
+        // 3. Process the feed matching logic and tally the download count
+        match nyaadle_logic(conn, channel.into_items(), local_watchlist, check, force).await {
+            Ok(count) => total_dl += count as u32,
+            Err(e) => error!("Error evaluating channel logic for '{}': {}", feed.name, e),
+        }
+    }
+
+    // 4. Print overall summary after all channels finish
+    if total_dl == 0 {
+        debug!("No items downloaded. Nyaadle closed.");
+    } else {
+        info!("{} total items downloaded. Nyaadle closed.", total_dl);
+        let _ = settings::write_log(
+            conn,
+            "INFO",
+            &format!("{} total items downloaded. Nyaadle closed.", total_dl),
+        );
+    }
+
+    Ok(())
 }
 
 /// Iterates the watchlist against RSS feed items and downloads matches.
@@ -229,22 +302,19 @@ pub async fn nyaadle_logic(
     watch_list: Vec<Watchlist>,
     check: bool,
     force: bool,
-) -> Result<()> {
+) -> Result<u8> {
     let non_opt = "non-vid";
     let mut num_dl: u8 = 0;
     println!("Checking watch-list...\n");
 
-    if watch_list.is_empty() || watch_list.iter().all(|w| w.title.is_empty()) {
-        warn!("Watch-list not found.");
-        let _ = settings::write_log(conn, "WARN", "Watch-list not found.");
-        println!("Please set a watch-list by running 'nyaadle wle --add'");
-        return Ok(());
-    }
-
     for anime in &watch_list {
         if anime.option.is_empty() {
             warn!("Download option not found for \"{}\".", anime.title);
-            let _ = settings::write_log(conn, "WARN", &format!("Download option not found for \"{}\".", anime.title));
+            let _ = settings::write_log(
+                conn,
+                "WARN",
+                &format!("Download option not found for \"{}\".", anime.title),
+            );
             println!("Please set a download option using 'nyaadle wle --edit'");
             continue;
         }
@@ -292,8 +362,12 @@ pub async fn nyaadle_logic(
         debug!("No items downloaded. Nyaadle closed.");
     } else {
         info!("{} items downloaded. Nyaadle closed.", num_dl);
-        let _ = settings::write_log(conn, "INFO", &format!("{} items downloaded. Nyaadle closed.", num_dl));
+        let _ = settings::write_log(
+            conn,
+            "INFO",
+            &format!("{} items downloaded. Nyaadle closed.", num_dl),
+        );
     }
 
-    Ok(())
+    Ok(num_dl)
 }
