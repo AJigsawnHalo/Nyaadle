@@ -50,7 +50,6 @@ async fn main() {
 
     WriteLogger::init(LevelFilter::Info, conf, log_file).unwrap();
 
-    // TODO: replace with a proper migration system when schema changes are needed.
     settings::get_db_ver(&conn).expect("Failed to set database version.");
 
     args::args_parser(&conn).await;

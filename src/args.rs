@@ -276,13 +276,13 @@ pub async fn args_parser(conn: &Connection) {
             feeds,
         }) => {
             if settings && !watchlist && !feeds {
-                tui::arg_tui("set"); //[cite: 7, 8]
+                tui::arg_tui("set");
             } else if !settings && watchlist && !feeds {
-                tui::arg_tui("wle"); //[cite: 7, 8]
+                tui::arg_tui("wle");
             } else if !settings && !watchlist && feeds {
-                tui::arg_tui("fds"); // Route directly to your new feeds TUI[cite: 7, 8]
+                tui::arg_tui("fds");
             } else {
-                tui::main_tui(); // Fall back to the main selection layer[cite: 7, 8]
+                tui::main_tui();
             }
         }
 
@@ -392,18 +392,15 @@ pub async fn args_parser(conn: &Connection) {
             } else if edit {
                 let n = name.expect("Feed name is required to edit a feed.");
                 let u = url.expect("New feed URL is required.");
-                // Assumed helper from Step 1
                 settings::update_feed_url(conn, &n, &u).expect("Failed to update feed URL.");
                 println!("Updated feed \"{}\" with new URL.", n);
             } else if rename {
                 let n = name.expect("Current feed name is required.");
                 let nn = new_name.expect("New feed name is required via --new-name.");
-                // Assumed helper from Step 1
                 settings::rename_feed(conn, &n, &nn).expect("Failed to rename feed.");
                 println!("Renamed feed \"{}\" to \"{}\".", n, nn);
             } else if set_default {
                 let n = name.expect("Feed name is required to set default.");
-                // Assumed helper from Step 1
                 settings::set_default_feed(conn, &n).expect("Failed to set default feed.");
                 println!("\"{}\" is now the default feed.", n);
             } else if delete {
@@ -451,7 +448,6 @@ pub async fn args_parser(conn: &Connection) {
                     None
                 };
 
-                // Assumed helper from Step 1 that executes the safe cascading update or deletion sequence
                 settings::db_delete_feed(
                     conn,
                     &n,
@@ -521,11 +517,9 @@ pub async fn args_parser(conn: &Connection) {
                 let tgt = item_builder(value, option);
                 if let Some(ids) = item {
                     for id in ids {
-                        // Check if a specific feed redirect was requested during the edit sequence
                         if let Some(f_name) = &feed {
                             let feeds = settings::read_feeds(conn).expect("Failed to read feeds.");
                             if let Some(f) = feeds.iter().find(|f| f.name == *f_name) {
-                                // Assumed helper from Step 1 that handles updating details AND the feed_id
                                 settings::update_wl_with_feed(conn, &tgt.0, &tgt.1, f.id, &id)
                                     .expect("Failed to update watchlist item feed relation.");
                             } else {
@@ -551,7 +545,6 @@ pub async fn args_parser(conn: &Connection) {
 
                 println!("ID | Item Title | Option | Feed Name");
                 for item in wl {
-                    // Match the item's feed_id against our loaded feed records to extract the name
                     let feed_name = feeds
                         .iter()
                         .find(|f| f.id == item.feed_id)

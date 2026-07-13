@@ -69,7 +69,6 @@ async fn downloader(conn: &Connection, target: &str, title: &str, force: bool) -
         1 => {
             let response = reqwest::get(target).await?;
 
-            // Use the final URL after any redirects to get the real filename
             let fname = response
                 .url()
                 .path_segments()
@@ -212,7 +211,6 @@ pub async fn feed_parser(conn: &Connection, check: bool, force: bool) -> Result<
         let _ = settings::write_log(conn, "INFO", "Nyaadle started in checking mode.");
     }
 
-    // 1. Load all tracking channels and the master watchlist from the database
     let feeds = settings::read_feeds(conn).unwrap_or_default();
     let master_watchlist = settings::read_watch_list(conn).unwrap_or_default();
     let mut total_dl: u32 = 0;
@@ -224,23 +222,19 @@ pub async fn feed_parser(conn: &Connection, check: bool, force: bool) -> Result<
         return Ok(());
     }
 
-    // 2. Loop through every registered feed channel sequentially
     for feed in feeds {
-        // Filter the watchlist down to only items targeting this specific feed channel
         let local_watchlist: Vec<Watchlist> = master_watchlist
             .iter()
             .filter(|item| item.feed_id == feed.id)
             .cloned()
             .collect();
 
-        // Skip network request entirely if no watchlist items track this channel
         if local_watchlist.is_empty() {
             continue;
         }
 
         println!("Connecting to feed channel: {} ({})", feed.name, feed.url);
 
-        // Fetch the RSS stream safely
         let content = match reqwest::get(&feed.url).await {
             Ok(res) => match res.bytes().await {
                 Ok(bytes) => bytes,
@@ -269,14 +263,12 @@ pub async fn feed_parser(conn: &Connection, check: bool, force: bool) -> Result<
             }
         };
 
-        // 3. Process the feed matching logic and tally the download count
         match nyaadle_logic(conn, channel.into_items(), local_watchlist, check, force).await {
             Ok(count) => total_dl += count as u32,
             Err(e) => error!("Error evaluating channel logic for '{}': {}", feed.name, e),
         }
     }
 
-    // 4. Print overall summary after all channels finish
     if total_dl == 0 {
         debug!("No items downloaded. Nyaadle closed.");
     } else {

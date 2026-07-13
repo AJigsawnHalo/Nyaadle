@@ -150,7 +150,7 @@ fn db_create(conn: &Connection) -> rusqlite::Result<()> {
             name    TEXT NOT NULL,
             option  TEXT NOT NULL,
             feed_id INTEGER NOT NULL REFERENCES feeds(id),
-            UNIQUE(name, feed_id))", // Allows tracking the same item name across different feeds
+            UNIQUE(name, feed_id))", 
         [],
     )?;
     conn.execute(
@@ -736,7 +736,6 @@ pub fn db_delete_feed(
         |row| row.get(0),
     )?;
 
-    // 1. If we are deleting the current default feed, apply the replacement default flag first
     if let Some(rep_name) = replacement_default {
         conn.execute("UPDATE feeds SET is_default = 0", [])?;
         conn.execute(
@@ -745,7 +744,6 @@ pub fn db_delete_feed(
         )?;
     }
 
-    // 2. Clear or assign dependent tracking items belonging to this feed channel
     if let Some(reassign_name) = reassign_feed_name {
         let reassign_id: i32 = conn.query_row(
             "SELECT id FROM feeds WHERE name = ?1",
@@ -757,14 +755,12 @@ pub fn db_delete_feed(
             params![reassign_id, target_id],
         )?;
     } else {
-        // Drop items linked to this specific feed if no alternative routing is requested
         conn.execute(
             "DELETE FROM watchlist WHERE feed_id = ?1",
             params![target_id],
         )?;
     }
 
-    // 3. Purge the target record cleanly
     conn.execute("DELETE FROM feeds WHERE id = ?1", params![target_id])?;
     Ok(())
 }

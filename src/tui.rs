@@ -105,7 +105,6 @@ impl TableViewItem<FeedColumn> for settings::Feed {
     fn to_column(&self, column: FeedColumn) -> String {
         match column {
             FeedColumn::Id => self.id.to_string(),
-            // Updated to explicitly flag the default feed in the main text column
             FeedColumn::Name => {
                 if self.is_default {
                     format!("{} [Default]", self.name)
@@ -120,7 +119,7 @@ impl TableViewItem<FeedColumn> for settings::Feed {
                 } else {
                     String::from("No")
                 }
-            } // Changed * to Yes/No for clarity
+            }
         }
     }
 
@@ -202,7 +201,6 @@ fn wle_tui(s: &mut Cursive) {
     let items = settings::read_watch_list(&conn).expect("Failed to unpack vectors");
     let feeds = settings::read_feeds(&conn).expect("Failed to unpack tracking channels");
 
-    // Map raw DB data into our UI wrappers containing resolved feed names
     let tui_items: Vec<TuiWatchlist> = items
         .into_iter()
         .map(|item| {
@@ -222,7 +220,7 @@ fn wle_tui(s: &mut Cursive) {
         .column(WatchColumn::Id, "ID", |c| c.width(5))
         .column(WatchColumn::Title, "Item Name", |c| c.width(45))
         .column(WatchColumn::Option, "Option", |c| c.width(10))
-        .column(WatchColumn::Feed, "Feed", |c| c.width(15)) // Changed header to Name
+        .column(WatchColumn::Feed, "Feed", |c| c.width(15))
         .default_column(WatchColumn::Id);
 
     table.set_items(tui_items);
@@ -238,7 +236,7 @@ fn wle_tui(s: &mut Cursive) {
         .child(Button::new("Quit", Cursive::quit));
 
     let button_layer = LinearLayout::horizontal()
-        .child(PaddedView::lrtb(0, 42, 0, 0, buttons_left)) // Adjusted padding slightly for width
+        .child(PaddedView::lrtb(0, 42, 0, 0, buttons_left))
         .child(buttons_right);
 
     s.add_layer(
@@ -868,7 +866,6 @@ fn delete_feed(s: &mut Cursive) {
     let conn = settings::open_conn().expect("Failed to open database.");
     let feeds = settings::read_feeds(&conn).expect("Failed to unpack database entities.");
 
-    // Safeguard 1: Block deleting the final remaining channel tracking resource
     if feeds.len() <= 1 {
         s.add_layer(Dialog::info(
             "Action Prohibited: Cannot delete the last remaining feed channel inside the engine.",
@@ -876,7 +873,6 @@ fn delete_feed(s: &mut Cursive) {
         return;
     }
 
-    // Safeguard 2: Intercept default deletion and prompt for its designated successor first
     if target_feed.is_default {
         let mut def_select = SelectView::<String>::new();
         for f in feeds.iter().filter(|f| f.id != target_feed.id) {
@@ -951,8 +947,8 @@ fn prompt_tui_watchlist_reassignment(
             )
             .expect("Failed to drop database dependencies properly.");
 
-            s.pop_layer(); // Clear reassignment window
-            fds_tui(s); // Re-render dashboard components
+            s.pop_layer();
+            fds_tui(s);
         })
         .button("Cancel", |s| {
             s.pop_layer();
