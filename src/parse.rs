@@ -203,16 +203,55 @@ async fn download_logic(
     }
 }
 
+pub async fn arg_parse(
+    conn: &Connection,
+    force: bool,
+    feed: Option<String>,
+    item: Option<String>,
+    vid_opt: Option<String>,
+) -> Result<()> {
+    // 1. Logic for specific item parsing
+    if let (Some(title), Some(opt)) = (item, vid_opt) {
+        println!("Parsing for: '{}' with option '{}'", &title, &opt);
+        // We still reuse feed_parser, but pass the item/option through
+        feed_parser(conn, false, force, feed, Some(title), Some(opt)).await?;
+        return Ok(());
+    }
+
+    // 2. Logic for standard/external feed parsing
+    feed_parser(conn, false, force, feed, None, None).await?;
+    Ok(())
+}
+
 /// Fetches and parses the RSS feed then runs the main logic.
 /// Pass `check = true` to print matches without downloading.
-pub async fn feed_parser(conn: &Connection, check: bool, force: bool) -> Result<()> {
+pub async fn feed_parser(conn: &Connection, check: bool, force: bool, feed_url: Option<String>, item_title: Option<String>, vid_opt: Option<String>) -> Result<()> {
     if check {
         info!("Nyaadle started in checking mode.");
         let _ = settings::write_log(conn, "INFO", "Nyaadle started in checking mode.");
     }
 
+    let master_watchlist = if let (Some(t), Some(o)) = (item_title, vid_opt) {
+        // Create a temporary "virtual" watchlist entry for the command line args
+        vec![settings::Watchlist {
+            id: -1, 
+            title: t,
+            option: o,
+            feed_id: -1,
+        }]
+    } else {
+        settings::read_watch_list(conn).unwrap_or_default()
+    };
+    if let Some(url) = feed_url {
+        println!("Parsing external feed: {}", url);
+        let content = reqwest::get(&url).await?.bytes().await?;
+        let channel = Channel::read_from(&content[..])?;
+        
+        // Use the entire watchlist for the external feed
+        nyaadle_logic(conn, channel.into_items(), master_watchlist, check, force).await?;
+        return Ok(());
+    }
     let feeds = settings::read_feeds(conn).unwrap_or_default();
-    let master_watchlist = settings::read_watch_list(conn).unwrap_or_default();
     let mut total_dl: u32 = 0;
 
     if master_watchlist.is_empty() || master_watchlist.iter().all(|w| w.title.is_empty()) {
@@ -225,7 +264,7 @@ pub async fn feed_parser(conn: &Connection, check: bool, force: bool) -> Result<
     for feed in feeds {
         let local_watchlist: Vec<Watchlist> = master_watchlist
             .iter()
-            .filter(|item| item.feed_id == feed.id)
+            .filter(|item| item.feed_id == feed.id || item.id == -1)
             .cloned()
             .collect();
 

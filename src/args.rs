@@ -51,6 +51,9 @@ enum Subcommands {
 
         #[clap(short, long, help = "Opens the feeds configuration editor.")]
         feeds: bool,
+
+        #[clap(short, long, help = "Opens the log viewer.")]
+        log: bool,
     },
 
     #[clap(
@@ -258,6 +261,8 @@ enum Subcommands {
         #[clap(short, long, help = "URL of the RSS feed.", value_name = "URL")]
         url: Option<String>,
     },
+    #[clap(about = "Opens the log viewer.")]
+    Log,
 }
 
 pub async fn args_parser(conn: &Connection) {
@@ -274,13 +279,16 @@ pub async fn args_parser(conn: &Connection) {
             settings,
             watchlist,
             feeds,
+            log,
         }) => {
-            if settings && !watchlist && !feeds {
+            if settings && !watchlist && !feeds && !log{
                 tui::arg_tui("set");
-            } else if !settings && watchlist && !feeds {
+            } else if !settings && watchlist && !feeds && !log{
                 tui::arg_tui("wle");
-            } else if !settings && !watchlist && feeds {
+            } else if !settings && !watchlist && feeds && !log{
                 tui::arg_tui("fds");
+            } else if !settings && !watchlist && !feeds && log {
+                tui::arg_tui("log");
             } else {
                 tui::main_tui();
             }
@@ -302,19 +310,14 @@ pub async fn args_parser(conn: &Connection) {
         }
 
         Some(Subcommands::Parse {
-            feed: _, // Prefix with underscore since custom override is handled by the loop now
+            feed,
             item,
             vid_opt,
-        }) => match (item, vid_opt) {
-            (Some(title), Some(opt)) => {
-                println!("Parsing for: '{}' with option '{}'", &title, &opt);
-                parse::feed_parser(conn, false, args.force).await.unwrap();
-            }
-            (None, None) => {
-                parse::feed_parser(conn, false, args.force).await.unwrap();
-            }
-            _ => println!("Both --title and --option are required together."),
-        },
+        }) => {
+            parse::arg_parse(conn, args.force, feed, item, vid_opt)
+                .await
+                .unwrap();
+        }
 
         Some(Subcommands::Settings {
             dl_dir,
@@ -563,12 +566,15 @@ pub async fn args_parser(conn: &Connection) {
 
         None => {
             if args.check {
-                parse::feed_parser(conn, args.check, args.force)
+                parse::feed_parser(conn, args.check, args.force, None, None, None)
                     .await
                     .unwrap();
             } else {
                 default_logic(conn, args.force).await;
             }
+        }
+        Some(Subcommands::Log) => {
+            tui::arg_tui("log");
         }
     }
 }
@@ -579,7 +585,7 @@ async fn default_logic(conn: &Connection, force: bool) {
     } else {
         debug!("Nyaadle started normally.");
     }
-    parse::feed_parser(conn, false, force).await.unwrap();
+    parse::feed_parser(conn, false, force, None, None, None).await.unwrap();
 }
 
 fn item_builder(val: Option<String>, opt: Option<String>) -> (String, String) {

@@ -188,6 +188,7 @@ pub fn arg_tui(item: &str) {
         "wle" => wle_tui(&mut siv),
         "set" => set_tui(&mut siv),
         "fds" => fds_tui(&mut siv),
+        "log" => log_tui(&mut siv),
         _ => unreachable!("Item not in list"),
     };
     siv.run();
