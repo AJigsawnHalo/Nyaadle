@@ -93,7 +93,7 @@ impl TableViewItem<LogColumn> for Log {
         Self: Sized,
     {
         match column {
-            LogColumn::Timestamp => self.timestamp.cmp(&other.timestamp),
+            LogColumn::Timestamp => self.timestamp.cmp(&other.timestamp).then(self.id.cmp(&other.id)),
             LogColumn::Level => self.level.cmp(&other.level),
             LogColumn::Message => self.message.cmp(&other.message),
         }

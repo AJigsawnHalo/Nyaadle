@@ -211,28 +211,35 @@ pub async fn arg_parse(
     item: Option<String>,
     vid_opt: Option<String>,
 ) -> Result<()> {
-    if let (Some(title), Some(opt)) = (item, vid_opt) {
-        println!("Parsing for: '{}' with option '{}'", &title, &opt);
-        feed_parser(conn, false, force, feed, Some(title), Some(opt)).await?;
-        return Ok(());
+    match (&item, &vid_opt) {
+        (Some(title), Some(opt)) => {
+            println!("Parsing for: '{}' with option '{}'", title, opt);
+            feed_parser(conn, false, force, feed, Some(title.clone()), Some(opt.clone())).await?;
+        }
+        (Some(_), None) | (None, Some(_)) => {
+            println!("Both --title and --option are required together.");
+            std::process::exit(0);
+        }
+        (None, None) => {
+            feed_parser(conn, false, force, feed, None, None).await?;
+        }
     }
-
-    feed_parser(conn, false, force, feed, None, None).await?;
     Ok(())
 }
 
 /// Fetches and parses the RSS feed then runs the main logic.
 /// Pass `check = true` to print matches without downloading.
-pub async fn feed_parser(conn: &Connection, check: bool, force: bool, feed_url: Option<String>, item_title: Option<String>, vid_opt: Option<String>) -> Result<()> {
-    if check {
-        info!("Nyaadle started in checking mode.");
-        let _ = settings::write_log(conn, "INFO", "Nyaadle started in checking mode.");
-    }
-
+pub async fn feed_parser(
+    conn: &Connection,
+    check: bool,
+    force: bool,
+    feed_url: Option<String>,
+    item_title: Option<String>,
+    vid_opt: Option<String>,
+) -> Result<()> {
     let master_watchlist = if let (Some(t), Some(o)) = (item_title, vid_opt) {
-        // Create a temporary "virtual" watchlist entry for the command line args
         vec![settings::Watchlist {
-            id: -1, 
+            id: -1,
             title: t,
             option: o,
             feed_id: -1,
@@ -240,17 +247,6 @@ pub async fn feed_parser(conn: &Connection, check: bool, force: bool, feed_url: 
     } else {
         settings::read_watch_list(conn).unwrap_or_default()
     };
-    if let Some(url) = feed_url {
-        println!("Parsing external feed: {}", url);
-        let content = reqwest::get(&url).await?.bytes().await?;
-        let channel = Channel::read_from(&content[..])?;
-        
-        // Use the entire watchlist for the external feed
-        nyaadle_logic(conn, channel.into_items(), master_watchlist, check, force).await?;
-        return Ok(());
-    }
-    let feeds = settings::read_feeds(conn).unwrap_or_default();
-    let mut total_dl: u32 = 0;
 
     if master_watchlist.is_empty() || master_watchlist.iter().all(|w| w.title.is_empty()) {
         warn!("Watch-list not found.");
@@ -259,61 +255,75 @@ pub async fn feed_parser(conn: &Connection, check: bool, force: bool, feed_url: 
         return Ok(());
     }
 
+    let feeds = if let Some(url) = feed_url {
+        vec![settings::Feed {
+            id: -1,
+            name: "Temporary Feed".to_string(),
+            url,
+            is_default: false,
+        }]
+    } else {
+        settings::read_feeds(conn).unwrap_or_default()
+    };
+
+    let mut total_downloaded: u32 = 0;
+
     for feed in feeds {
-        let local_watchlist: Vec<Watchlist> = master_watchlist
+        let mut local_watchlist: Vec<Watchlist> = master_watchlist
             .iter()
             .filter(|item| item.feed_id == feed.id || item.id == -1)
             .cloned()
             .collect();
 
+        for item in &mut local_watchlist {
+            if item.id == -1 {
+                item.feed_id = feed.id;
+            }
+        }
+
         if local_watchlist.is_empty() {
             continue;
         }
 
-        println!("Connecting to feed channel: {} ({})", feed.name, feed.url);
-
         let content = match reqwest::get(&feed.url).await {
             Ok(res) => match res.bytes().await {
                 Ok(bytes) => bytes,
-                Err(_) => {
-                    eprintln!(
-                        "Failed to stream data from channel '{}'. Skipping...",
-                        feed.name
-                    );
+                Err(e) => {
+                    error!("Failed to read bytes from feed {}: {}", feed.name, e);
                     continue;
                 }
             },
-            Err(_) => {
-                eprintln!("Unable to connect to '{}'. Skipping channel...", feed.name);
+            Err(e) => {
+                error!("Failed to fetch feed {}: {}", feed.name, e);
                 continue;
             }
         };
 
         let channel = match Channel::read_from(&content[..]) {
             Ok(ch) => ch,
-            Err(_) => {
-                eprintln!(
-                    "Failed to parse XML for channel '{}'. Skipping...",
-                    feed.name
-                );
+            Err(e) => {
+                error!("Failed to parse RSS for feed {}: {}", feed.name, e);
                 continue;
             }
         };
 
-        match nyaadle_logic(conn, channel.into_items(), local_watchlist, check, force).await {
-            Ok(count) => total_dl += count as u32,
-            Err(e) => error!("Error evaluating channel logic for '{}': {}", feed.name, e),
+        match nyaadle_logic(conn, channel.items, local_watchlist, check, force).await {
+            Ok(count) => total_downloaded += count as u32,
+            Err(e) => {
+                error!("Error processing feed logic for {}: {}", feed.name, e);
+                continue;
+            }
         }
     }
 
-    if total_dl == 0 {
-        debug!("No items downloaded. Nyaadle closed.");
+    if total_downloaded == 0 {
+        debug!("Nyaadle finished. No new items downloaded.");
     } else {
-        info!("{} total items downloaded. Nyaadle closed.", total_dl);
+        info!("Nyaadle finished. Total items downloaded: {}", total_downloaded);
         let _ = settings::write_log(
             conn,
             "INFO",
-            &format!("{} total items downloaded. Nyaadle closed.", total_dl),
+            &format!("Nyaadle finished. Total items downloaded: {}", total_downloaded),
         );
     }
 
@@ -331,9 +341,9 @@ pub async fn nyaadle_logic(
     watch_list: Vec<Watchlist>,
     check: bool,
     force: bool,
-) -> Result<u8> {
+) -> Result<i32> {
     let non_opt = "non-vid";
-    let mut num_dl: u8 = 0;
+    let mut num_dl: i32 = 0;
     println!("Checking watch-list...\n");
 
     for anime in &watch_list {
@@ -385,17 +395,6 @@ pub async fn nyaadle_logic(
                 }
             }
         }
-    }
-
-    if num_dl == 0 {
-        debug!("No items downloaded. Nyaadle closed.");
-    } else {
-        info!("{} items downloaded. Nyaadle closed.", num_dl);
-        let _ = settings::write_log(
-            conn,
-            "INFO",
-            &format!("{} items downloaded. Nyaadle closed.", num_dl),
-        );
     }
 
     Ok(num_dl)
