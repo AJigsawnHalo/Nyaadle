@@ -9,16 +9,32 @@ pub mod tui;
 use simplelog::*;
 use std::fs::OpenOptions;
 #[macro_use]
-extern crate error_chain;
-#[macro_use]
 extern crate log;
+extern crate time;
 
-/// The main function of the program.
-fn main() {
-    // Setup the logging macro and functions
+#[cfg(feature = "discord")]
+extern crate serenity;
+
+// The main function of the program.
+#[tokio::main]
+async fn main() {
+    // Ensure the database exists before anything else
     settings::set_check();
-    let log_path = settings::get_log();
-    let time_format = String::from("%y-%b-%d %a %H:%M:%S");
+
+    // Open a single shared connection for the lifetime of the program
+    let conn = settings::open_conn().expect("Failed to open database.");
+
+    // Set up logging
+    let log_path = settings::get_log(&conn);
+    if let Some(log_dir) = std::path::Path::new(&log_path).parent() {
+        if !log_dir.exists() {
+            std::fs::create_dir_all(log_dir).expect("Failed to create log directory.");
+        }
+    }
+
+    let time_format = format_description!(
+        "[year]-[month repr:short]-[day] [weekday repr:short] [hour]:[minute]:[second]"
+    );
     let log_file = OpenOptions::new()
         .write(true)
         .append(true)
@@ -26,13 +42,15 @@ fn main() {
         .open(log_path)
         .unwrap();
     let conf = ConfigBuilder::new()
-        .set_time_format(time_format)
-        .set_time_to_local(true)
+        .set_time_format_custom(time_format)
+        .set_time_offset_to_local()
+        .unwrap()
+        .add_filter_ignore_str("serenity")
         .build();
 
     WriteLogger::init(LevelFilter::Info, conf, log_file).unwrap();
 
-    // TEMPORARY FUNCTION
-    settings::get_db_ver().expect("Failed to set database version.");
-    args::args_parser();
+    settings::get_db_ver(&conn).expect("Failed to set database version.");
+
+    args::args_parser(&conn).await;
 }
