@@ -271,7 +271,7 @@ pub async fn feed_parser(
     for feed in feeds {
         let mut local_watchlist: Vec<Watchlist> = master_watchlist
             .iter()
-            .filter(|item| item.feed_id == feed.id || item.id == -1)
+            .filter(|item| feed.id == -1 || item.feed_id == feed.id || item.id == -1)
             .cloned()
             .collect();
 
