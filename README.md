@@ -24,7 +24,7 @@ If a match is found, it grabs the link and downloads it to a specified folder.
   ```
 #### Discord feature
 Nyaadle can notify you of any item it has downloaded through a discord webhook integration. Requires a valid discord webhook url.
-To use the feature, add `--features discord` to the cargo command. (e.g. `cargo install --features discord --path .`
+To use the feature, add `--features discord` to the cargo command. (e.g. `cargo install --features discord --path .`)
 
 ## Usage
 ```
