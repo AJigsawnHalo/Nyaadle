@@ -107,7 +107,7 @@ async fn downloader(conn: &Connection, target: &str, title: &str, force: bool) -
             Ok(1)
         }
         _ => {
-            println!("File Found. Skipping Download.");
+            println!("File already on disk. Skipping download.");
             Ok(0)
         }
     }
@@ -161,7 +161,7 @@ pub async fn arg_dl(conn: &Connection, links: Vec<String>) -> Result<()> {
 fn tracking_check(conn: &Connection, item: String, wl_title: &str, force: bool, feed_id: i32) -> bool {
     let trck = settings::get_tracking(conn, wl_title, feed_id).expect("Failed to get tracking.");
     if trck == item && !force {
-        println!("Item already downloaded. Skipping...");
+        println!("Item already downloaded. Skipping.\n");
         true
     } else {
         let _ = settings::update_tracking(conn, wl_title, &item, feed_id).is_ok();
@@ -182,7 +182,7 @@ async fn download_logic(
     if tracking_check(conn, title.to_string(), wl_title, force, feed_id) {
         return Ok(0);
     }
-    println!("Downloading {}", title);
+    println!("Found {} on feed.", title);
 
     let target = match item.link() {
         Some(link) => link,
@@ -249,9 +249,9 @@ pub async fn feed_parser(
     };
 
     if master_watchlist.is_empty() || master_watchlist.iter().all(|w| w.title.is_empty()) {
-        warn!("Watch-list not found.");
-        let _ = settings::write_log(conn, "WARN", "Watch-list not found.");
-        println!("Please set a watch-list by running 'nyaadle wle --add'");
+        warn!("Watchlist not found.");
+        let _ = settings::write_log(conn, "WARN", "Watchlist not found.");
+        println!("Please set a watchlist by running 'nyaadle wle --add'");
         return Ok(());
     }
 
@@ -269,6 +269,7 @@ pub async fn feed_parser(
     let mut total_downloaded: u32 = 0;
 
     for feed in feeds {
+        println!("\n====== Parsing {} ======", feed.name);
         let mut local_watchlist: Vec<Watchlist> = master_watchlist
             .iter()
             .filter(|item| feed.id == -1 || item.feed_id == feed.id || item.id == -1)
@@ -282,6 +283,7 @@ pub async fn feed_parser(
         }
 
         if local_watchlist.is_empty() {
+            println!("No watchlist items for this feed. Skipping.");
             continue;
         }
 
@@ -344,7 +346,7 @@ pub async fn nyaadle_logic(
 ) -> Result<i32> {
     let non_opt = "non-vid";
     let mut num_dl: i32 = 0;
-    println!("Checking watch-list...\n");
+    println!("Checking watchlist...\n");
 
     for anime in &watch_list {
         if anime.option.is_empty() {
@@ -358,7 +360,7 @@ pub async fn nyaadle_logic(
             continue;
         }
 
-        println!("Checking for {}", &anime.title);
+        println!("Checking for {}", &anime.title.trim());
 
         // Collect all matching items before acting on any of them
         let matches: Vec<&rss::Item> = items
@@ -380,7 +382,7 @@ pub async fn nyaadle_logic(
             .collect();
 
         if matches.is_empty() {
-            println!("No matches found for {}\n", &anime.title);
+            println!("No matches found.\n");
             continue;
         }
 
